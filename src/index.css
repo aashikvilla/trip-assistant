@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 215 25% 27%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+
+    /* Travel-inspired primary: Ocean blue */
+    --primary: 200 85% 45%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 200 85% 65%;
+
+    /* Warm secondary: Sunset coral */
+    --secondary: 15 85% 60%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Fresh accent: Adventure green */
+    --accent: 150 70% 50%;
+    --accent-foreground: 0 0% 98%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 200 85% 45%;
+
+    /* Beautiful gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(200 85% 45%) 0%, hsl(15 85% 60%) 100%);
+    --gradient-ocean: linear-gradient(180deg, hsl(200 85% 55%) 0%, hsl(200 90% 35%) 100%);
+    --gradient-sunset: linear-gradient(135deg, hsl(15 85% 60%) 0%, hsl(35 85% 55%) 100%);
+    --gradient-adventure: linear-gradient(135deg, hsl(150 70% 50%) 0%, hsl(180 60% 45%) 100%);
+
+    /* Elegant shadows */
+    --shadow-soft: 0 4px 20px -4px hsl(200 85% 45% / 0.1);
+    --shadow-medium: 0 8px 30px -8px hsl(200 85% 45% / 0.15);
+    --shadow-strong: 0 16px 40px -12px hsl(200 85% 45% / 0.2);
+    --shadow-glow: 0 0 30px hsl(200 85% 65% / 0.3);
+
+    /* Smooth transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 215 25% 15%;
+    --foreground: 0 0% 98%;
+
+    --card: 215 25% 15%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 215 25% 15%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Travel-inspired primary: Ocean blue */
+    --primary: 200 85% 55%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 200 85% 75%;
+
+    /* Warm secondary: Sunset coral */
+    --secondary: 15 85% 50%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Fresh accent: Adventure green */
+    --accent: 150 70% 45%;
+    --accent-foreground: 0 0% 98%;
+
+    --muted: 215 25% 20%;
+    --muted-foreground: 215 20% 65%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 25% 25%;
+    --input: 215 25% 25%;
+    --ring: 200 85% 55%;
+
+    /* Gradients for dark mode */
+    --gradient-hero: linear-gradient(135deg, hsl(200 85% 55%) 0%, hsl(15 85% 50%) 100%);
+    --gradient-ocean: linear-gradient(180deg, hsl(200 85% 65%) 0%, hsl(200 90% 45%) 100%);
+    --gradient-sunset: linear-gradient(135deg, hsl(15 85% 50%) 0%, hsl(35 85% 45%) 100%);
+    --gradient-adventure: linear-gradient(135deg, hsl(150 70% 45%) 0%, hsl(180 60% 40%) 100%);
+
+    /* Dark shadows */
+    --shadow-soft: 0 4px 20px -4px hsl(200 85% 55% / 0.15);
+    --shadow-medium: 0 8px 30px -8px hsl(200 85% 55% / 0.2);
+    --shadow-strong: 0 16px 40px -12px hsl(200 85% 55% / 0.25);
+    --shadow-glow: 0 0 30px hsl(200 85% 75% / 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
