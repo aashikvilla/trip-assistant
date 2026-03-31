@@ -8,7 +8,7 @@ import { TripsList } from './TripsList';
 import { CreateTripDialog } from './CreateTripDialog';
 import { JoinTripDialog } from './JoinTripDialog';
 import { TravelPreferencesDialog } from '@/components/onboarding/TravelPreferencesDialog';
-import { Link } from 'react-router-dom';
+import Link from "next/link";
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 
 const Dashboard = () => {
@@ -32,7 +32,7 @@ const Dashboard = () => {
             
             <div className="flex items-center space-x-4">
               <Button variant="outline" size="sm" asChild>
-                <Link to="/settings">
+                <Link href="/settings">
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
                 </Link>

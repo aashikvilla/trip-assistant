@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,7 +142,8 @@ interface TripData {
 }
 
 const TripDetail = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
   const queryClient = useQueryClient();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -407,7 +409,7 @@ const TripDetail = () => {
               to it.
             </p>
             <Button asChild>
-              <Link to="/dashboard">Back to Dashboard</Link>
+              <Link href="/dashboard">Back to Dashboard</Link>
             </Button>
           </CardContent>
         </Card>
@@ -422,7 +424,7 @@ const TripDetail = () => {
         <div className="px-4 py-2">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" asChild className="p-2">
-              <Link to="/dashboard">
+              <Link href="/dashboard">
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>

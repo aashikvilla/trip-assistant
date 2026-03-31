@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { MapPin, Calendar, Users, ArrowRight, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import { Link } from 'react-router-dom';
+import Link from "next/link";
 
 export const TripsList = () => {
   const { data: trips, isLoading } = useQuery({
@@ -107,7 +107,7 @@ export const TripsList = () => {
               
               <div className="pt-2">
                 <Button asChild variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Link to={`/trips/${trip.id}`}>
+                  <Link href={`/trips/${trip.id}`}>
                     View Trip
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Link>

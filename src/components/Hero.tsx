@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/Button";
 import { ArrowRight, MapPin, Calendar, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { JoinTripDialog } from "./JoinTripDialog";
 import heroImage from "@/assets/hero-travel.jpg";
 import { useState } from "react";
@@ -37,7 +37,7 @@ const Hero = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button variant="hero" size="lg" className="group" asChild>
-              <Link to="/auth">
+              <Link href="/auth">
                 Start Planning
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -51,7 +51,7 @@ const Hero = () => {
               Join Trip
             </Button>
             <Button variant="outline-hero" size="lg" asChild>
-              <Link to="#features">Explore Features</Link>
+              <Link href="#features">Explore Features</Link>
             </Button>
           </div>
 

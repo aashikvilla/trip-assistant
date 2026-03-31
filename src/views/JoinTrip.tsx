@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,8 +21,9 @@ import {
 import { format } from 'date-fns';
 
 const JoinTrip = () => {
-  const { token } = useParams<{ token: string }>();
-  const navigate = useNavigate();
+  const params = useParams<{ token: string }>();
+  const token = params?.token;
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
@@ -148,7 +149,7 @@ const JoinTrip = () => {
         description: "Please sign in to join this trip.",
         variant: "destructive"
       });
-      navigate('/auth');
+      router.push('/auth');
       return;
     }
 
@@ -178,7 +179,7 @@ const JoinTrip = () => {
         description: `You've successfully joined ${trip.name}`,
       });
 
-      navigate(`/trips/${result.trip_id}`);
+      router.push(`/trips/${result.trip_id}`);
     } catch (error: any) {
       toast({
         title: "Error joining trip",

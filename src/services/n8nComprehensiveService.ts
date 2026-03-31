@@ -292,7 +292,7 @@ export const buildComprehensiveN8NRequest = async (tripId: string): Promise<N8NC
 export const callComprehensiveN8NWebhook = async (request: N8NComprehensiveRequest): Promise<N8NComprehensiveResponse[]> => {
   console.log('🚀 Calling comprehensive N8N webhook with request:', request);
   
-  const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://aashik99.app.n8n.cloud/webhook-test/vibetrip';
+  const webhookUrl = "/api/ai/generate-itinerary";
   console.log('🔗 Using webhook URL:', webhookUrl);
   
   try {
@@ -458,10 +458,7 @@ const processItineraryInBackground = async (tripId: string, jobId: string): Prom
     
     // Send to N8N webhook
     console.log('🔍 BACKGROUND STEP 4: Sending request to N8N webhook...');
-    const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
-    if (!n8nWebhookUrl) {
-      throw new Error('N8N webhook URL not configured');
-    }
+    const n8nWebhookUrl = "/api/ai/generate-itinerary";
 
     // Convert request to plain object to avoid type issues
     const requestData = {
@@ -624,7 +621,7 @@ export const generateComprehensiveItinerary = async (tripId: string): Promise<vo
 
   // Create job record in itinerary_generation_jobs table
   console.log('🔍 STEP 5: Creating job record in itinerary_generation_jobs...');
-  const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://aashik99.app.n8n.cloud/webhook/vibetrip';
+  const webhookUrl = "/api/ai/generate-itinerary";
   
   const { data: jobRecord, error: jobError } = await supabaseService
     .from('itinerary_generation_jobs')

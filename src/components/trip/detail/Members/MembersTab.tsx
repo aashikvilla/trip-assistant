@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/Button';
 import { Plus } from 'lucide-react';
 import { MemberList } from './MemberList';
-import { useTripMembers } from '@/lib/hooks/useTripMembers';
+import { useTripMembers } from '@/hooks/useTripMembers';
 import { useAuth } from '@/hooks/useAuth';
 import { InviteMemberDialog } from '@/components/trip/InviteMemberDialog';
 

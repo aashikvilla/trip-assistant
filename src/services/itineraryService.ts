@@ -46,7 +46,7 @@ export interface ParsedItinerary {
 export const generateEnhancedItinerary = async (request: EnhancedN8NRequest): Promise<EnhancedN8NResponse> => {
   console.log('🚀 Calling enhanced N8N webhook with request:', request);
   
-  const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://aashik99.app.n8n.cloud/webhook-test/vibetrip';
+  const webhookUrl = "/api/ai/generate-itinerary";
   
   try {
     const response = await fetch(webhookUrl, {
@@ -84,7 +84,7 @@ export const generateEnhancedItinerary = async (request: EnhancedN8NRequest): Pr
 export const generateItinerary = async (request: N8NItineraryRequest): Promise<N8NItineraryResponse[]> => {
   console.log('🚀 Calling legacy N8N webhook with request:', request);
   
-  const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'https://aashik99.app.n8n.cloud/webhook-test/vibetrip';
+  const webhookUrl = "/api/ai/generate-itinerary";
   console.log('🔗 Using webhook URL:', webhookUrl);
   
   try {

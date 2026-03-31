@@ -69,6 +69,16 @@ export const CreateTripDialog: React.FC<CreateTripDialogProps> = ({ open, onOpen
     },
   ];
 
+  const vibeOptions = [
+    { value: 'relaxed', label: 'Relaxed' },
+    { value: 'adventure', label: 'Adventure' },
+    { value: 'cultural', label: 'Cultural' },
+    { value: 'romantic', label: 'Romantic' },
+    { value: 'party', label: 'Party' },
+    { value: 'luxury', label: 'Luxury' },
+    { value: 'budget', label: 'Budget' },
+  ];
+
   const addDestination = () => {
     if (currentDestination.trim() && !destinations.includes(currentDestination.trim())) {
       setDestinations([...destinations, currentDestination.trim()]);
@@ -179,7 +189,8 @@ export const CreateTripDialog: React.FC<CreateTripDialogProps> = ({ open, onOpen
         travel_style: travelStyle,
         vibe: vibe || null,
         activity_level: activityLevel || null,
-        must_do_activities: mustDoActivities.length > 0 ? mustDoActivities : null,
+        must_do_activities: mustDoActivities,
+        must_do: mustDoActivities,
         visibility: 'private',
         start_date: startDate?.toISOString().split('T')[0] || null,
         end_date: endDate?.toISOString().split('T')[0] || null,
@@ -330,12 +341,18 @@ export const CreateTripDialog: React.FC<CreateTripDialogProps> = ({ open, onOpen
           {/* Trip Vibe */}
           <div className="space-y-2">
             <Label htmlFor="vibe">Trip Vibe</Label>
-            <Input
-              id="vibe"
-              placeholder="e.g., Romantic and cultural, Adventure-packed, Relaxed and fun"
-              value={vibe}
-              onChange={(e) => setVibe(e.target.value)}
-            />
+            <Select value={vibe} onValueChange={setVibe}>
+              <SelectTrigger id="vibe">
+                <SelectValue placeholder="Select trip vibe (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {vibeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">
               Describe the overall mood and atmosphere you want for this trip
             </p>
@@ -349,9 +366,9 @@ export const CreateTripDialog: React.FC<CreateTripDialogProps> = ({ open, onOpen
                 <SelectValue placeholder="Select activity level" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="low">Low - Relaxed pace, minimal physical activity</SelectItem>
+                <SelectItem value="light">Light - Relaxed pace, minimal physical activity</SelectItem>
                 <SelectItem value="moderate">Moderate - Balanced mix of activities and rest</SelectItem>
-                <SelectItem value="high">High - Action-packed, lots of physical activities</SelectItem>
+                <SelectItem value="active">Active - Action-packed, lots of physical activities</SelectItem>
               </SelectContent>
             </Select>
           </div>

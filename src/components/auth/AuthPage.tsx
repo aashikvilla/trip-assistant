@@ -8,11 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plane, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -93,6 +95,9 @@ const AuthPage = () => {
         description: error.message,
         variant: "destructive"
       });
+    } else {
+      router.push("/dashboard");
+      router.refresh();
     }
 
     setIsLoading(false);

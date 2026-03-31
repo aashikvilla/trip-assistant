@@ -7,8 +7,35 @@ export const useAuth = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [showPreferences, setShowPreferences] = useState<boolean>(false);
 
+  const shouldShowOnboarding = useCallback(async (userId: string): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('preferences_completed, preferences')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error) {
+      return false;
+    }
+
+    if (!data) {
+      return true;
+    }
+
+    const profile = data as { preferences_completed?: boolean; preferences?: unknown };
+    if (profile.preferences_completed === true) {
+      return false;
+    }
+
+    const prefs = profile.preferences as { interests?: unknown[]; dietary?: unknown[] } | null | undefined;
+    const hasInterests = Array.isArray(prefs?.interests) && prefs!.interests!.length > 0;
+    const hasDietary = Array.isArray(prefs?.dietary) && prefs!.dietary!.length > 0;
+
+    return !(hasInterests || hasDietary) || profile.preferences_completed === false;
+  }, []);
+
   // Handle auth state changes
-  const handleAuthStateChange = useCallback((event: string, session: Session | null) => {
+  const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
     console.log('Auth state changed:', event, session);
     
     const currentUser = session?.user ?? null;
@@ -24,14 +51,14 @@ export const useAuth = () => {
       setShowPreferences(true);
       setLoading(false);
     } else if (currentUser) {
-      // Existing user signed in - don't show preferences
+      const needsOnboarding = await shouldShowOnboarding(currentUser.id);
       console.log('Existing user signed in');
-      setShowPreferences(false);
+      setShowPreferences(needsOnboarding);
       setLoading(false);
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [shouldShowOnboarding]);
 
   // Initialize auth state and set up listeners
   useEffect(() => {
@@ -66,7 +93,8 @@ export const useAuth = () => {
         if (session?.user) {
           console.log('Found existing user session');
           setUser(session.user);
-          setShowPreferences(false); // Never show preferences for existing sessions
+          const needsOnboarding = await shouldShowOnboarding(session.user.id);
+          setShowPreferences(needsOnboarding);
         }
         setLoading(false);
       } catch (error) {
@@ -85,7 +113,7 @@ export const useAuth = () => {
         subscription.unsubscribe();
       }
     };
-  }, [handleAuthStateChange]);
+  }, [handleAuthStateChange, shouldShowOnboarding]);
 
   const signOut = useCallback(async (): Promise<void> => {
     try {

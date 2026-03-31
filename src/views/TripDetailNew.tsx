@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -92,7 +93,8 @@ const TripHeader: React.FC<TripHeaderProps> = ({ trip, isOwner, onEditClick }) =
 );
 
 const TripDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('itinerary');
@@ -138,7 +140,7 @@ const TripDetailPage: React.FC = () => {
       <div className="container py-8">
         <div className="flex items-center space-x-2 mb-6">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/trips">
+            <Link href="/trips">
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -158,7 +160,7 @@ const TripDetailPage: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center space-x-2">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/trips">
+            <Link href="/trips">
               <ArrowLeft className="h-5 w-5" />
               <span className="sr-only">Back to trips</span>
             </Link>

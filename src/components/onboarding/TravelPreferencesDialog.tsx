@@ -99,7 +99,10 @@ export const TravelPreferencesDialog: React.FC<TravelPreferencesDialogProps> = (
     try {
     const { error } = await supabase
       .from('profiles')
-      .update({ updated_at: new Date().toISOString() })
+      .update({
+        preferences_completed: true,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', userId);
 
     if (error) {
@@ -143,6 +146,7 @@ export const TravelPreferencesDialog: React.FC<TravelPreferencesDialogProps> = (
           allergies: allergies,
           loyalty_programs: loyaltyData
         },
+        preferences_completed: true,
         updated_at: new Date().toISOString()
       })
       .eq('id', userId);

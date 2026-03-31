@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, User, Settings as SettingsIcon, Bell, Shield, HelpCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from "next/link";
 import { ProfileEditor } from '@/components/settings/ProfileEditor';
 import { PreferencesEditor } from '@/components/settings/PreferencesEditor';
 
@@ -16,7 +16,7 @@ const Settings = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/dashboard">
+                <Link href="/dashboard">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Dashboard
                 </Link>

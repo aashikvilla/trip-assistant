@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Hash, Loader2, CheckCircle, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from "next/navigation";
 
 interface JoinTripDialogProps {
   open: boolean;
@@ -23,7 +23,7 @@ export const JoinTripDialog: React.FC<JoinTripDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleJoinTrip = async () => {
     if (!user) {
@@ -32,7 +32,7 @@ export const JoinTripDialog: React.FC<JoinTripDialogProps> = ({
         description: "Please sign in to join a trip.",
         variant: "destructive"
       });
-      navigate('/auth');
+      router.push('/auth');
       return;
     }
 
@@ -73,7 +73,7 @@ export const JoinTripDialog: React.FC<JoinTripDialogProps> = ({
 
       onOpenChange(false);
       setTripCode('');
-      navigate(`/trips/${result.trip_id}`);
+      router.push(`/trips/${result.trip_id}`);
     } catch (error: any) {
       toast({
         title: "Error joining trip",
