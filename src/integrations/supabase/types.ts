@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -116,34 +116,40 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          category: string
           created_at: string
           currency: string
           description: string | null
           id: string
           incurred_on: string
           paid_by: string
+          split_between: string[]
           trip_id: string
           updated_at: string
         }
         Insert: {
           amount: number
+          category?: string
           created_at?: string
           currency?: string
           description?: string | null
           id?: string
           incurred_on?: string
           paid_by: string
+          split_between?: string[]
           trip_id: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          category?: string
           created_at?: string
           currency?: string
           description?: string | null
           id?: string
           incurred_on?: string
           paid_by?: string
+          split_between?: string[]
           trip_id?: string
           updated_at?: string
         }
@@ -167,42 +173,30 @@ export type Database = {
       itinerary_generation_jobs: {
         Row: {
           completed_at: string | null
-          created_at: string | null
+          created_at: string
           error_message: string | null
           id: string
-          request_payload: Json
-          response_data: Json | null
-          started_at: string | null
+          progress: number
           status: string
-          trip_id: string
-          updated_at: string | null
-          webhook_url: string
+          trip_id: string | null
         }
         Insert: {
           completed_at?: string | null
-          created_at?: string | null
+          created_at?: string
           error_message?: string | null
           id?: string
-          request_payload: Json
-          response_data?: Json | null
-          started_at?: string | null
+          progress?: number
           status?: string
-          trip_id: string
-          updated_at?: string | null
-          webhook_url: string
+          trip_id?: string | null
         }
         Update: {
           completed_at?: string | null
-          created_at?: string | null
+          created_at?: string
           error_message?: string | null
           id?: string
-          request_payload?: Json
-          response_data?: Json | null
-          started_at?: string | null
+          progress?: number
           status?: string
-          trip_id?: string
-          updated_at?: string | null
-          webhook_url?: string
+          trip_id?: string | null
         }
         Relationships: [
           {
@@ -217,16 +211,21 @@ export type Database = {
       itinerary_items: {
         Row: {
           activity_description: string | null
+          activity_type: string | null
           all_day: boolean
           booking_id: string | null
+          booking_required: boolean
+          cost_estimate: string | null
           created_at: string
           created_by: string
           day_number: number | null
+          duration_minutes: number | null
           end_time: string | null
           external_link: string | null
           food_suggestion: string | null
           id: string
-          is_ai_generated: boolean | null
+          is_ai_generated: boolean
+          location: string | null
           location_lat: number | null
           location_lng: number | null
           location_name: string | null
@@ -235,23 +234,29 @@ export type Database = {
           start_time: string | null
           time_slot: string | null
           title: string
-          trivia: string | null
           trip_id: string
+          trivia: string | null
           type: Database["public"]["Enums"]["itinerary_item_type"]
           updated_at: string
+          weather_dependent: boolean
         }
         Insert: {
           activity_description?: string | null
+          activity_type?: string | null
           all_day?: boolean
           booking_id?: string | null
+          booking_required?: boolean
+          cost_estimate?: string | null
           created_at?: string
           created_by: string
           day_number?: number | null
+          duration_minutes?: number | null
           end_time?: string | null
           external_link?: string | null
           food_suggestion?: string | null
           id?: string
-          is_ai_generated?: boolean | null
+          is_ai_generated?: boolean
+          location?: string | null
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
@@ -260,23 +265,29 @@ export type Database = {
           start_time?: string | null
           time_slot?: string | null
           title: string
-          trivia?: string | null
           trip_id: string
+          trivia?: string | null
           type?: Database["public"]["Enums"]["itinerary_item_type"]
           updated_at?: string
+          weather_dependent?: boolean
         }
         Update: {
           activity_description?: string | null
+          activity_type?: string | null
           all_day?: boolean
           booking_id?: string | null
+          booking_required?: boolean
+          cost_estimate?: string | null
           created_at?: string
           created_by?: string
           day_number?: number | null
+          duration_minutes?: number | null
           end_time?: string | null
           external_link?: string | null
           food_suggestion?: string | null
           id?: string
-          is_ai_generated?: boolean | null
+          is_ai_generated?: boolean
+          location?: string | null
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
@@ -285,10 +296,11 @@ export type Database = {
           start_time?: string | null
           time_slot?: string | null
           title?: string
-          trivia?: string | null
           trip_id?: string
+          trivia?: string | null
           type?: Database["public"]["Enums"]["itinerary_item_type"]
           updated_at?: string
+          weather_dependent?: boolean
         }
         Relationships: [
           {
@@ -314,216 +326,165 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      payment_records: {
         Row: {
-          avatar_url: string | null
+          amount: number
           created_at: string
-          first_name: string | null
+          date: string
+          description: string | null
+          from_user_id: string
           id: string
-          last_name: string | null
-          preferences: Json | null
-          updated_at: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          first_name?: string | null
-          id: string
-          last_name?: string | null
-          preferences?: Json | null
-          updated_at?: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          preferences?: Json | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      trip_comment_reactions: {
-        Row: {
-          comment_id: string
-          created_at: string
-          id: string
-          reaction_type: string
-          user_id: string
-        }
-        Insert: {
-          comment_id: string
-          created_at?: string
-          id?: string
-          reaction_type: string
-          user_id: string
-        }
-        Update: {
-          comment_id?: string
-          created_at?: string
-          id?: string
-          reaction_type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_comment_reactions_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "trip_post_comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_comment_reactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trip_post_comments: {
-        Row: {
-          author_id: string
-          content: string
-          created_at: string
-          id: string
-          is_deleted: boolean
-          parent_comment_id: string | null
-          post_id: string
-          updated_at: string
-        }
-        Insert: {
-          author_id: string
-          content: string
-          created_at?: string
-          id?: string
-          is_deleted?: boolean
-          parent_comment_id?: string | null
-          post_id: string
-          updated_at?: string
-        }
-        Update: {
-          author_id?: string
-          content?: string
-          created_at?: string
-          id?: string
-          is_deleted?: boolean
-          parent_comment_id?: string | null
-          post_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_post_comments_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_post_comments_parent_comment_id_fkey"
-            columns: ["parent_comment_id"]
-            isOneToOne: false
-            referencedRelation: "trip_post_comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_post_comments_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "trip_posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trip_post_reactions: {
-        Row: {
-          created_at: string
-          id: string
-          post_id: string
-          reaction_type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          post_id: string
-          reaction_type: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          post_id?: string
-          reaction_type?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_post_reactions_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "trip_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "trip_post_reactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      trip_posts: {
-        Row: {
-          author_id: string
-          content: string
-          created_at: string
-          id: string
-          is_deleted: boolean
-          is_pinned: boolean
-          metadata: Json
-          post_type: string
+          to_user_id: string
           trip_id: string
           updated_at: string
         }
         Insert: {
-          author_id: string
-          content: string
+          amount: number
           created_at?: string
+          date?: string
+          description?: string | null
+          from_user_id: string
           id?: string
-          is_deleted?: boolean
-          is_pinned?: boolean
-          metadata?: Json
-          post_type?: string
+          to_user_id: string
           trip_id: string
           updated_at?: string
         }
         Update: {
-          author_id?: string
-          content?: string
+          amount?: number
           created_at?: string
+          date?: string
+          description?: string | null
+          from_user_id?: string
           id?: string
-          is_deleted?: boolean
-          is_pinned?: boolean
-          metadata?: Json
-          post_type?: string
+          to_user_id?: string
           trip_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "trip_posts_author_id_fkey"
-            columns: ["author_id"]
+            foreignKeyName: "payment_records_from_user_id_fkey"
+            columns: ["from_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "trip_posts_trip_id_fkey"
+            foreignKeyName: "payment_records_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_records_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          allergies: string
+          avatar_url: string | null
+          created_at: string
+          dietary_needs: string[]
+          dietary_preferences: Json
+          first_name: string | null
+          id: string
+          interests: Json
+          last_name: string | null
+          loyalty_programs: Json
+          preferences: Json
+          preferences_completed: boolean
+          updated_at: string
+        }
+        Insert: {
+          allergies?: string
+          avatar_url?: string | null
+          created_at?: string
+          dietary_needs?: string[]
+          dietary_preferences?: Json
+          first_name?: string | null
+          id: string
+          interests?: Json
+          last_name?: string | null
+          loyalty_programs?: Json
+          preferences?: Json
+          preferences_completed?: boolean
+          updated_at?: string
+        }
+        Update: {
+          allergies?: string
+          avatar_url?: string | null
+          created_at?: string
+          dietary_needs?: string[]
+          dietary_preferences?: Json
+          first_name?: string | null
+          id?: string
+          interests?: Json
+          last_name?: string | null
+          loyalty_programs?: Json
+          preferences?: Json
+          preferences_completed?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trip_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invitation_code: string
+          invitation_token: string
+          invited_by: string
+          role: Database["public"]["Enums"]["trip_member_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invitation_code: string
+          invitation_token?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["trip_member_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invitation_code?: string
+          invitation_token?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["trip_member_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_invitations_trip_id_fkey"
             columns: ["trip_id"]
             isOneToOne: false
             referencedRelation: "trips"
@@ -536,6 +497,7 @@ export type Database = {
           added_at: string
           id: string
           invitation_status: Database["public"]["Enums"]["invitation_status"]
+          invited_by: string | null
           profile_id: string
           role: Database["public"]["Enums"]["trip_member_role"]
           trip_id: string
@@ -544,6 +506,7 @@ export type Database = {
           added_at?: string
           id?: string
           invitation_status?: Database["public"]["Enums"]["invitation_status"]
+          invited_by?: string | null
           profile_id: string
           role?: Database["public"]["Enums"]["trip_member_role"]
           trip_id: string
@@ -552,11 +515,19 @@ export type Database = {
           added_at?: string
           id?: string
           invitation_status?: Database["public"]["Enums"]["invitation_status"]
+          invited_by?: string | null
           profile_id?: string
           role?: Database["public"]["Enums"]["trip_member_role"]
           trip_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "trip_members_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trip_members_profile_id_fkey"
             columns: ["profile_id"]
@@ -573,111 +544,394 @@ export type Database = {
           },
         ]
       }
-      trips: {
+      trip_message_reactions: {
         Row: {
-          ai_itinerary_data: Json | null
-          budget: Database["public"]["Enums"]["budget_enum"] | null
-          cover_image_url: string | null
           created_at: string
-          created_by: string
-          description: string | null
-          destination_main: string | null
-          end_date: string | null
-          hotel_recommendations: Json | null
           id: string
-          itinerary_generated_at: string | null
-          itinerary_status: string | null
-          local_travel_info: Json | null
-          must_do: string[] | null
-          name: string
-          start_date: string | null
-          travel_style: Database["public"]["Enums"]["travel_style_enum"] | null
-          updated_at: string
-          vibe: Database["public"]["Enums"]["trip_vibe_enum"] | null
-          visibility: Database["public"]["Enums"]["trip_visibility"]
-trip_code?: string
+          message_id: string
+          reaction_type: string
+          user_id: string
         }
         Insert: {
-          ai_itinerary_data?: Json | null
-          budget?: Database["public"]["Enums"]["budget_enum"] | null
-          cover_image_url?: string | null
           created_at?: string
-          created_by: string
-          description?: string | null
-          destination_main?: string | null
-          end_date?: string | null
-          hotel_recommendations?: Json | null
           id?: string
-          itinerary_generated_at?: string | null
-          itinerary_status?: string | null
-          local_travel_info?: Json | null
-          must_do?: string[] | null
-          name: string
-          start_date?: string | null
-          travel_style?: Database["public"]["Enums"]["travel_style_enum"] | null
-          updated_at?: string
-          vibe?: Database["public"]["Enums"]["trip_vibe_enum"] | null
-          visibility?: Database["public"]["Enums"]["trip_visibility"]
-          trip_code?: string
+          message_id: string
+          reaction_type: string
+          user_id: string
         }
         Update: {
-          ai_itinerary_data?: Json | null
-          budget?: Database["public"]["Enums"]["budget_enum"] | null
-          cover_image_url?: string | null
           created_at?: string
-          created_by?: string
-          description?: string | null
-          destination_main?: string | null
-          end_date?: string | null
-          hotel_recommendations?: Json | null
           id?: string
-          itinerary_generated_at?: string | null
-          itinerary_status?: string | null
-          local_travel_info?: Json | null
-          must_do?: string[] | null
-          name?: string
-          start_date?: string | null
-          travel_style?: Database["public"]["Enums"]["travel_style_enum"] | null
-          updated_at?: string
-          vibe?: Database["public"]["Enums"]["trip_vibe_enum"] | null
-          visibility?: Database["public"]["Enums"]["trip_visibility"]
-          trip_code?: string
+          message_id?: string
+          reaction_type?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "trips_created_by_fkey"
-            columns: ["created_by"]
+            foreignKeyName: "trip_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "trip_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_message_reactions_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
+      trip_messages: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          is_deleted: boolean
+          is_edited: boolean
+          message_type: string
+          metadata: Json
+          reply_to_id: string | null
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          message_type?: string
+          metadata?: Json
+          reply_to_id?: string | null
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          message_type?: string
+          metadata?: Json
+          reply_to_id?: string | null
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "trip_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_messages_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_poll_votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_index: number
+          poll_id: string
+          rating: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_index: number
+          poll_id: string
+          rating?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_index?: number
+          poll_id?: string
+          rating?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "trip_polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_poll_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_polls: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_closed: boolean
+          message_id: string
+          options: Json
+          poll_type: string
+          question: string
+          settings: Json
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_closed?: boolean
+          message_id: string
+          options?: Json
+          poll_type?: string
+          question: string
+          settings?: Json
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_closed?: boolean
+          message_id?: string
+          options?: Json
+          poll_type?: string
+          question?: string
+          settings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_polls_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "trip_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          preferences: Json
+          profile_id: string
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          preferences?: Json
+          profile_id: string
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          preferences?: Json
+          profile_id?: string
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_preferences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_preferences_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_typing_indicators: {
+        Row: {
+          id: string
+          is_typing: boolean
+          last_activity: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_typing?: boolean
+          last_activity?: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_typing?: boolean
+          last_activity?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_typing_indicators_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_typing_indicators_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          activity_level: string | null
+          budget: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          destination_main: string | null
+          dietary_preferences: Json
+          end_date: string | null
+          hotel_recommendations: Json
+          id: string
+          local_travel_info: Json
+          must_do: string[]
+          must_do_activities: Json
+          name: string
+          start_date: string | null
+          travel_style: string | null
+          trip_code: string
+          updated_at: string
+          vibe: string | null
+          visibility: Database["public"]["Enums"]["trip_visibility"]
+        }
+        Insert: {
+          activity_level?: string | null
+          budget?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          destination_main?: string | null
+          dietary_preferences?: Json
+          end_date?: string | null
+          hotel_recommendations?: Json
+          id?: string
+          local_travel_info?: Json
+          must_do?: string[]
+          must_do_activities?: Json
+          name: string
+          start_date?: string | null
+          travel_style?: string | null
+          trip_code?: string
+          updated_at?: string
+          vibe?: string | null
+          visibility?: Database["public"]["Enums"]["trip_visibility"]
+        }
+        Update: {
+          activity_level?: string | null
+          budget?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          destination_main?: string | null
+          dietary_preferences?: Json
+          end_date?: string | null
+          hotel_recommendations?: Json
+          id?: string
+          local_travel_info?: Json
+          must_do?: string[]
+          must_do_activities?: Json
+          name?: string
+          start_date?: string | null
+          travel_style?: string | null
+          trip_code?: string
+          updated_at?: string
+          vibe?: string | null
+          visibility?: Database["public"]["Enums"]["trip_visibility"]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      accept_trip_invitation: {
+        Args: { invitation_token_param: string }
+        Returns: Json
+      }
+      cleanup_typing_indicators: { Args: Record<PropertyKey, never>; Returns: undefined }
+      generate_invitation_code: { Args: Record<PropertyKey, never>; Returns: string }
+      generate_unique_trip_code: { Args: Record<PropertyKey, never>; Returns: string }
+      get_trip_dietary_preferences: {
+        Args: { trip_id_param: string }
+        Returns: Json
+      }
+      get_trip_member_interests: {
+        Args: { trip_id_param: string }
+        Returns: Json
+      }
       has_trip_role: {
         Args: {
-          _trip_id: string
           _user_id: string
+          _trip_id: string
           roles: Database["public"]["Enums"]["trip_member_role"][]
         }
         Returns: boolean
       }
       is_trip_member: {
-        Args: { _trip_id: string; _user_id: string }
+        Args: { _user_id: string; _trip_id: string }
         Returns: boolean
       }
       is_trip_owner: {
-        Args: { _trip_id: string; _user_id: string }
+        Args: { _user_id: string; _trip_id: string }
         Returns: boolean
       }
+      join_trip_by_code: { Args: { code_param: string }; Returns: Json }
+      update_typing_indicator: {
+        Args: { p_trip_id: string; p_is_typing?: boolean }
+        Returns: undefined
+      }
+      validate_hotel_recommendations: { Args: { data: Json }; Returns: boolean }
+      validate_local_travel_info: { Args: { data: Json }; Returns: boolean }
     }
     Enums: {
       booking_type: "flight" | "hotel" | "car" | "activity" | "other"
-      budget_enum: "budget" | "mid_range" | "luxury" | "ultra_luxury"
       invitation_status: "pending" | "accepted" | "declined" | "expired"
       itinerary_item_type:
         | "flight"
@@ -687,19 +941,7 @@ trip_code?: string
         | "activity"
         | "note"
         | "other"
-      travel_style_enum: "solo" | "couple" | "family" | "friends" | "business"
       trip_member_role: "owner" | "editor" | "viewer"
-      trip_vibe_enum:
-        | "relaxed"
-        | "adventurous"
-        | "cultural"
-        | "foodie"
-        | "nightlife"
-        | "nature"
-        | "luxury"
-        | "budget"
-        | "romantic"
-        | "family_friendly"
       trip_visibility: "private" | "link" | "public"
     }
     CompositeTypes: {
@@ -829,7 +1071,6 @@ export const Constants = {
   public: {
     Enums: {
       booking_type: ["flight", "hotel", "car", "activity", "other"],
-      budget_enum: ["budget", "mid_range", "luxury", "ultra_luxury"],
       invitation_status: ["pending", "accepted", "declined", "expired"],
       itinerary_item_type: [
         "flight",
@@ -840,20 +1081,7 @@ export const Constants = {
         "note",
         "other",
       ],
-      travel_style_enum: ["solo", "couple", "family", "friends", "business"],
       trip_member_role: ["owner", "editor", "viewer"],
-      trip_vibe_enum: [
-        "relaxed",
-        "adventurous",
-        "cultural",
-        "foodie",
-        "nightlife",
-        "nature",
-        "luxury",
-        "budget",
-        "romantic",
-        "family_friendly",
-      ],
       trip_visibility: ["private", "link", "public"],
     },
   },
