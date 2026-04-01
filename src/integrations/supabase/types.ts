@@ -828,8 +828,8 @@ export type Database = {
           hotel_recommendations: Json
           id: string
           local_travel_info: Json
-          must_do: string[]
-          must_do_activities: Json
+          must_do: string[]|null
+          must_do_activities: string[] | null
           name: string
           start_date: string | null
           travel_style: string | null

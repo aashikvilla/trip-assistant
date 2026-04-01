@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { generateComprehensiveItinerary } from "@/services/n8nComprehensiveService";
 
 export const useItineraryJobManagement = () => {
   const queryClient = useQueryClient();
@@ -13,15 +12,24 @@ export const useItineraryJobManagement = () => {
       // Mark previous job as cancelled if it exists
       await supabase
         .from('itinerary_generation_jobs')
-        .update({ 
+        .update({
           status: 'cancelled',
           updated_at: new Date().toISOString()
         })
         .eq('trip_id', tripId)
         .in('status', ['failed', 'pending', 'processing']);
 
-      // Start new generation
-      await generateComprehensiveItinerary(tripId);
+      // Start new generation via API route
+      const res = await fetch("/api/ai/generate-itinerary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "Retry failed" }));
+        throw new Error(error.error || `Retry failed (${res.status})`);
+      }
     },
     onSuccess: (_, tripId) => {
       queryClient.invalidateQueries({ queryKey: ["itinerary-status", tripId] });

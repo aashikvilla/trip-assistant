@@ -64,8 +64,10 @@ const AuthPage = () => {
       } else {
         toast({
           title: "Account created successfully!",
-          description: "Welcome to Vibe Trip. Let's set up your travel preferences."
+          description: "Welcome to Vibe Trip!"
         });
+        router.push("/dashboard");
+        router.refresh();
       }
     } else {
       toast({
