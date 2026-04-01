@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +36,12 @@ import { ItineraryStatusNotification } from "@/components/itinerary/ItinerarySta
 import { ExpensesTab } from "@/components/trip/detail/Expenses/ExpensesTab";
 import { BookingsTab } from "@/components/trip/detail/Bookings/BookingsTab";
 import type { Tables } from "@/integrations/supabase/types";
+import { MobileBottomNav, type TabId } from "@/components/trip/MobileBottomNav";
+import { DownloadTripButton } from "@/components/pwa/DownloadTripButton";
+import { OfflineStorageInfo } from "@/components/pwa/OfflineStorageInfo";
+import { useConnectivity } from "@/hooks/useConnectivity";
+import { useOfflineStore } from "@/hooks/useOfflineStore";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 
 // Define a type for JSON fields that can be stored in the database
 type JsonValue =
@@ -149,9 +155,29 @@ const TripDetail = () => {
   const queryClient = useQueryClient();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState("itinerary");
+  const [activeTab, setActiveTab] = useState<TabId>("itinerary");
+  const [isStandalone, setIsStandalone] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const { generateItinerary, isGenerating } = useItineraryGeneration();
   const { data: itineraryStatus } = useItineraryStatus(id || "");
+  const { isOffline } = useConnectivity();
+  const { get: getOfflineTrip } = useOfflineStore();
+  const [offlineData, setOfflineData] = useState<Awaited<ReturnType<typeof getOfflineTrip>>>(undefined);
+
+  useEffect(() => {
+    setIsStandalone(window.matchMedia("(display-mode: standalone)").matches);
+  }, []);
+
+  useEffect(() => {
+    if (isOffline && id) {
+      getOfflineTrip(id).then(setOfflineData);
+    }
+  }, [isOffline, id, getOfflineTrip]);
+
+  usePullToRefresh({
+    onRefresh: () => queryClient.invalidateQueries({ queryKey: ["trip", id] }),
+    containerRef: contentRef as React.RefObject<HTMLElement>,
+  });
 
   React.useEffect(() => {
     if (itineraryStatus?.job_status === 'completed' || itineraryStatus?.job_status === 'failed') {
@@ -184,6 +210,20 @@ const TripDetail = () => {
 
   const { data: trip, isLoading } = useQuery<TripData | null>({
     queryKey: ["trip", id],
+    enabled: !!id && !isOffline,
+    placeholderData: isOffline && offlineData
+      ? {
+          id: offlineData.tripId,
+          name: "Trip (offline)",
+          created_at: "",
+          updated_at: "",
+          created_by: "",
+          trip_members: offlineData.members as TripMember[],
+          expenses: offlineData.expenses as Expense[],
+          bookings: offlineData.bookings as Booking[],
+          itinerary_items: offlineData.itinerary as TripData["itinerary_items"],
+        }
+      : undefined,
     queryFn: async () => {
       if (!id) {
         console.error("No trip ID provided");
@@ -379,7 +419,6 @@ const TripDetail = () => {
         throw error;
       }
     },
-    enabled: !!id,
   });
 
   if (isLoading) {
@@ -421,15 +460,27 @@ const TripDetail = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+      {/* Offline indicator */}
+      {isOffline && (
+        <div className="bg-amber-500 text-white text-xs text-center py-1 px-4">
+          {offlineData ? "Viewing cached data — changes will sync when online" : "You're offline"}
+        </div>
+      )}
       {/* Main Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="px-4 py-2">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild className="p-2">
-              <Link href="/dashboard">
+            {isStandalone ? (
+              <Button variant="ghost" size="sm" onClick={() => window.history.back()} className="p-2">
                 <ArrowLeft className="h-5 w-5" />
-              </Link>
-            </Button>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" asChild className="p-2">
+                <Link href="/dashboard">
+                  <ArrowLeft className="h-5 w-5" />
+                </Link>
+              </Button>
+            )}
             <div className="flex-1 min-w-0">
               <h1 className="text-lg font-semibold truncate">{trip.name}</h1>
               <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
@@ -470,11 +521,11 @@ const TripDetail = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-9rem)] overflow-hidden">
+      <div ref={contentRef} className="flex-1 flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-9rem)] overflow-hidden">
         {/* Tabs Navigation - Enhanced Design */}
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={(v) => setActiveTab(v as TabId)}
           className="flex-1 flex flex-col h-full overflow-hidden"
           defaultValue="itinerary"
         >
@@ -488,10 +539,10 @@ const TripDetail = () => {
                 <span className="hidden sm:inline">Itinerary</span>
               </TabsTrigger>
               <TabsTrigger
-                value="discussion"
+                value="chat"
                 className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50"
               >
-                <MessageSquare className="h-5 w-5 sm:mr-2" />
+                        <MessageSquare className="h-5 w-5 sm:mr-2" />
                 <span className="hidden sm:inline">Chat</span>
               </TabsTrigger>
               <TabsTrigger
@@ -518,10 +569,11 @@ const TripDetail = () => {
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="space-y-4 p-4 overflow-y-auto h-full pb-24">
+          <TabsContent value="itinerary" className="space-y-4 p-4 overflow-y-auto h-full pb-24 md:pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h3 className="text-lg font-semibold">Trip Itinerary</h3>
               <div className="flex flex-wrap items-center gap-2">
+                <DownloadTripButton tripId={trip.id} />
                 {(trip.ai_itinerary_data || (trip.itinerary_items && trip.itinerary_items.length > 0)) ? (
                   <>
                     <Button
@@ -551,6 +603,7 @@ const TripDetail = () => {
                 ) : null}
               </div>
             </div>
+            <OfflineStorageInfo tripId={trip.id} />
             {/* AI Guidance / Generation Panel */}
             {(!trip.ai_itinerary_data ||
               trip.itinerary_status === "generating" ||
@@ -675,20 +728,20 @@ const TripDetail = () => {
               )}
           </TabsContent>
 
-          <TabsContent value="discussion" className="p-0 overflow-y-auto h-full">
+          <TabsContent value="chat" className="p-0 overflow-y-auto h-full pb-16 md:pb-0">
             <TripChat tripId={trip.id} />
           </TabsContent>
 
           <TabsContent
             value="bookings"
-            className="flex-1 min-h-0 overflow-y-auto p-4"
+            className="flex-1 min-h-0 overflow-y-auto p-4 pb-20 md:pb-4"
           >
             <BookingsTab tripId={trip.id} />
           </TabsContent>
 
           <TabsContent
             value="expenses"
-            className="flex-1 min-h-0 overflow-y-auto"
+            className="flex-1 min-h-0 overflow-y-auto pb-16 md:pb-0"
           >
             <div className="h-full">
               <ExpensesTab tripId={trip.id} />
@@ -901,6 +954,12 @@ const TripDetail = () => {
           />
         )}
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
     </div>
   );
 };

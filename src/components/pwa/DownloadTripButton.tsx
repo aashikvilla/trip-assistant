@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Download, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { saveOfflineTrip } from "@/lib/offline-store";
-import { createClient } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DownloadTripButtonProps {
   tripId: string;
@@ -17,7 +17,6 @@ export function DownloadTripButton({ tripId }: DownloadTripButtonProps) {
   const handleDownload = async () => {
     setState("loading");
     setProgress(0);
-    const supabase = createClient();
 
     try {
       setProgress(20);

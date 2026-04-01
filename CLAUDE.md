@@ -1,9 +1,9 @@
 # Vibe Trip — Project Context
 
 ## What This Is
-AI-powered group travel planning app. Users create trips, invite members, and generate AI itineraries via N8N webhook. Built with React + Vite + TypeScript + Supabase.
+AI-powered group travel planning app. Users create trips, invite members, and generate AI itineraries via N8N webhook. Built with **Next.js 16 + TypeScript + Supabase**.
 
-**Key user flows:** Create trip → Invite members → Set preferences → Generate AI itinerary → Edit/view calendar-style itinerary.
+**Key user flows:** Create trip → Invite members → Set preferences → Generate AI itinerary → Edit/view calendar-style itinerary → Use offline/on mobile as PWA.
 
 ---
 
@@ -11,43 +11,75 @@ AI-powered group travel planning app. Users create trips, invite members, and ge
 
 | Layer | Tech |
 |---|---|
-| Frontend | React 18, Vite, TypeScript |
+| Frontend | Next.js 16 (App Router), TypeScript |
 | Styling | Tailwind CSS v3, shadcn/ui (Radix) |
 | State | React Query v5, React Hook Form, Zod |
-| Routing | react-router-dom v6 |
+| Routing | Next.js App Router |
 | Backend | Supabase (Postgres + Auth + Realtime + RLS) |
-| AI | N8N webhook (`VITE_N8N_WEBHOOK_URL`) |
-| DnD | @hello-pangea/dnd |
+| AI | N8N webhook (`NEXT_PUBLIC_N8N_WEBHOOK_URL`) |
+| PWA | Manual Workbox SW (`public/sw.js`), `idb` for IndexedDB |
+| Push | `web-push` + VAPID, `/api/push/*` routes |
 
 ---
 
 ## Project Status
 
-**This project was copied from another codebase.** The UI components are largely complete; the **backend/DB must be rebuilt fresh** against a new Supabase instance.
+**Migrated from React/Vite to Next.js 16.** UI components complete. Backend/DB must be built against a new Supabase instance.
 
-### What exists (UI-complete, needs DB wiring):
+### Completed features:
 - Auth pages, dashboard, trip detail, settings, onboarding
 - Calendar-style itinerary view (day + week views, drag & drop)
-- Trip creation form with preferences (travel style, vibe, budget, must-do)
-- Member invitation system (email, shareable link, 6-digit code, 4-char trip code)
+- Trip creation with preferences (travel style, vibe, budget, must-do)
+- Member invitation (email, shareable link, 6-digit code, 4-char trip code)
 - AI itinerary generation with async job tracking UI
-- Expense tracking, group discussion/chat
+- Expense tracking, group chat with polls, reactions, typing indicators
+- **PWA — fully implemented** (see below)
 
-### What needs to be built fresh:
-- **Supabase schema** — design and run migrations from scratch on new project
+### What still needs DB wiring:
+- **Supabase schema** — run migrations from `supabase/migrations/`
 - **RLS policies** — all tables need proper row-level security
-- **Supabase types** — regenerate `src/types/database.types.ts` from new schema
-- **N8N webhook** — test and verify integration with real endpoint
+- **Supabase types** — regenerate `src/integrations/supabase/types.ts`
+- **N8N webhook** — test and verify integration
 
-### Files to delete (copied artifacts, not needed):
-- `FINAL_IMPLEMENTATION_PLAN.md` — old planning doc
-- `RECOMMENDED_PACKAGES.md` — already installed
-- `add_itinerary_columns.sql` — superseded by migrations
-- `execute-on-supabase-website.sql` — one-time run artifact
-- `run-migration.js` — migration runner script, not needed
-- `test-n8n-webhook.js` — ad-hoc test script
-- `project_summary.txt` — replaced by this file
-- `bun.lockb` — using npm (package-lock.json exists)
+---
+
+## PWA Architecture (`feature/pwa-mobile-experience`)
+
+### Service Worker: `public/sw.js`
+Manual Workbox-based SW. App-shell caching, network-first for Supabase, offline fallback page.
+
+### Offline Store: `src/lib/offline-store.ts`
+IndexedDB (`vibe-trip-offline` DB) with three stores:
+- `trips` — full trip snapshot (itinerary, members, expenses, bookings, documents)
+- `sync-queue` — pending write actions (see `src/lib/background-sync.ts`)
+- `install-prompt` — tracks 30-day suppression of install prompt
+
+### Connectivity: `src/lib/connectivity.ts` + `src/hooks/useConnectivity.ts`
+State machine: `online | offline | degraded`. React hook exposes `{ status, isOnline, isOffline, isDegraded }`.
+
+### PWA Components (`src/components/pwa/`)
+- `OfflineBanner` — shown when offline/degraded
+- `InstallPrompt` — `beforeinstallprompt` capture + 30-day dismissal suppression
+- `UpdatePrompt` — SW waiting state → "Refresh to update" toast
+- `DownloadTripButton` — saves trip snapshot to IndexedDB; shows progress
+- `OfflineStorageInfo` — shows size/timestamp of cached trip; remove button
+- `ServiceWorkerRegistration` — client component that registers `public/sw.js`
+
+### Mobile UI
+- `MobileBottomNav` (`src/components/trip/MobileBottomNav.tsx`) — fixed bottom bar, `md:hidden`, tabs: itinerary/chat/polls/expenses/bookings/members
+- `SwipeableTabs` (`src/components/trip/SwipeableTabs.tsx`) — pointer-event swipe navigation
+- `usePullToRefresh` — touch pull-down → invalidates React Query cache
+- Standalone PWA detection (`window.matchMedia('(display-mode: standalone)')`) → custom back button in TripDetail
+
+### Push Notifications
+- VAPID keys in `.env.local` (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`)
+- `push_subscriptions` table — see `supabase/migrations/20260402000000_push_subscriptions.sql`
+- API routes: `POST /api/push/subscribe`, `DELETE /api/push/unsubscribe`, `POST /api/push/send`
+- `src/lib/push-notifications.ts` — subscribe/unsubscribe/mute logic
+- `src/hooks/usePushNotifications.ts` — React hook
+
+### Offline Message Queuing (TripChat)
+When offline, `sendMessage` is replaced by `enqueueAction({ tripId, type: 'send_message', payload })`. Toast feedback: "Message queued — will send when online."
 
 ---
 
@@ -63,6 +95,7 @@ itinerary_items    — activities per trip/day; time_slot, ai_generated, drag or
 itinerary_generation_jobs — async job tracking (pending/processing/completed/failed)
 expenses           — per-trip expense tracking
 trip_messages      — realtime chat per trip
+push_subscriptions — web push endpoint + keys per user
 ```
 
 ### Service layer (`src/services/`)
@@ -72,39 +105,29 @@ trip_messages      — realtime chat per trip
 - `n8nResponseParser.ts` — parses N8N response → DB records
 - `n8nComprehensiveService.ts` — orchestrates the full generation flow
 
-### Types (`src/types/`)
-- `database.types.ts` — **auto-generated from Supabase**, never hand-edit
-- `enums.ts` — TravelStyle, TripVibe, Budget enums
-- `itinerary.ts` — enhanced activity/hotel/travel-info interfaces
-- `n8n.ts` — N8N request/response shapes
-- `trip.ts` — trip-related interfaces
-
-### N8N Request Shape (key contract)
-```typescript
-{ trip_details: { destinations, trip_name, trip_length_days, travel_dates,
-                  travel_style, vibe, budget, must_do, description },
-  travelers: [{ id, interests }],
-  global_preferences: { dietary: string[] }  // deduplicated from all members
-}
-```
+### Types (`src/integrations/supabase/types.ts`)
+**Auto-generated from Supabase** — never hand-edit. Regenerate via `supabase gen types typescript`.
 
 ---
 
 ## Dev Rules
 
-- **Never hand-edit `database.types.ts`** — regenerate via `supabase gen types typescript`
+- **Never hand-edit `src/integrations/supabase/types.ts`** — regenerate via `supabase gen types typescript`
 - **RLS on every table** — default deny, explicit policies per role
-- Supabase client lives in `src/integrations/supabase/client.ts` — single instance
-- React Query for all server state; no local state for data that lives in DB
-- Zod schemas in `src/types/` validate at form/API boundaries only
+- Supabase client: `src/integrations/supabase/client.ts` exports `supabase` (not `createClient`)
+- React Query for all server state
 - No `console.log` in committed code
 - shadcn components in `src/components/ui/` — don't modify, extend via composition
+- Tab IDs in TripDetail use `TabId` from `MobileBottomNav` — "chat" not "discussion"
 
 ---
 
 ## Env Vars Required
 ```
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-VITE_N8N_WEBHOOK_URL=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_N8N_WEBHOOK_URL=
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
 ```

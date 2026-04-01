@@ -2,19 +2,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  MessageCircle, 
-  Send, 
-  BarChart3, 
+import {
+  MessageCircle,
+  Send,
+  BarChart3,
   Loader2,
   Plus,
-  Reply
+  Reply,
+  WifiOff,
 } from 'lucide-react';
 import { useTripChat } from '@/hooks/useTripChat';
 import { ChatMessage } from './ChatMessage';
 import { CreatePollDialog } from './CreatePollDialog';
 import { ReactionPicker } from './ReactionPicker';
 import { TypingIndicator } from './TypingIndicator';
+import { useConnectivity } from '@/hooks/useConnectivity';
+import { enqueueAction } from '@/lib/background-sync';
+import { useToast } from '@/hooks/use-toast';
 
 interface TripChatProps {
   tripId: string;
@@ -23,6 +27,8 @@ interface TripChatProps {
 export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
   const [message, setMessage] = useState('');
   const [showPollDialog, setShowPollDialog] = useState(false);
+  const { isOffline } = useConnectivity();
+  const { toast } = useToast();
   const [replyToMessage, setReplyToMessage] = useState<string | null>(null);
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -92,11 +98,25 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
 
     const messageContent = message.trim();
     setMessage('');
-    
+
     // Stop typing indicator
     updateTypingIndicator(false);
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (isOffline) {
+      await enqueueAction({
+        tripId,
+        type: 'send_message',
+        payload: { content: messageContent, replyToId: replyToMessage },
+      });
+      setReplyToMessage(null);
+      toast({
+        title: 'Message queued',
+        description: "Will send when you're back online.",
+      });
+      return;
     }
 
     try {
@@ -253,6 +273,12 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
 
         {/* Message Input */}
         <div className="sticky bottom-0 bg-gradient-to-r from-white via-blue-50/50 to-white border-t border-gray-200 p-4 shadow-lg backdrop-blur-sm z-10">
+          {isOffline && (
+            <div className="flex items-center gap-2 text-xs text-amber-600 mb-2">
+              <WifiOff className="h-3 w-3" />
+              <span>Messages will be queued and sent when online</span>
+            </div>
+          )}
           <form onSubmit={handleSendMessage} className="flex items-center gap-3 w-full">
             <Input
               ref={inputRef}
