@@ -23,6 +23,7 @@ import {
   Edit,
   Sparkles,
   Loader2,
+  X,
 } from "lucide-react";
 import { InviteMemberDialog } from "@/components/trip/InviteMemberDialog";
 import { TripEditDialog } from "@/components/trip/TripEditDialog";
@@ -30,9 +31,11 @@ import { TripChat } from "@/components/trip/TripChat";
 import { SimpleItineraryCalendar } from "@/components/calendar/SimpleItineraryCalendar";
 import { ItineraryItemDialog } from "@/components/itinerary/ItineraryItemDialog";
 import { ItineraryItemDetailsDialog } from "@/components/itinerary/ItineraryItemDetailsDialog";
-import { useItineraryGeneration } from "@/hooks/useItineraryGeneration";
-import { useItineraryStatus } from "@/hooks/useItineraryStatus";
+import { useItineraryStream } from "@/hooks/useItineraryStream";
 import { ItineraryStatusNotification } from "@/components/itinerary/ItineraryStatusNotification";
+import { StreamingThinkingPanel } from "@/components/itinerary/StreamingThinkingPanel";
+import { PartialDayCard } from "@/components/itinerary/PartialDayCard";
+import { TripRecommendationPrompt } from "@/components/trip/TripRecommendationPrompt";
 import { ExpensesTab } from "@/components/trip/detail/Expenses/ExpensesTab";
 import { BookingsTab } from "@/components/trip/detail/Bookings/BookingsTab";
 import type { Tables } from "@/integrations/supabase/types";
@@ -150,14 +153,33 @@ const TripDetail = () => {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("itinerary");
-  const { generateItinerary, isGenerating } = useItineraryGeneration();
-  const { data: itineraryStatus } = useItineraryStatus(id || "");
+  const {
+    events: streamEvents,
+    status: streamStatus,
+    itinerary: streamingItinerary,
+    startStream,
+    cancel: cancelStream,
+  } = useItineraryStream();
 
+  const isStreaming = streamStatus === "streaming";
+  const isGenerating = isStreaming;
+
+  const generateItinerary = React.useCallback(
+    (tripId: string) => {
+      startStream(tripId);
+    },
+    [startStream],
+  );
+
+  // Invalidate trip query when stream completes so DB data is reloaded
   React.useEffect(() => {
-    if (itineraryStatus?.job_status === 'completed' || itineraryStatus?.job_status === 'failed') {
-      queryClient.invalidateQueries({ queryKey: ['trip', id] });
+    if (streamStatus === "complete") {
+      queryClient.invalidateQueries({ queryKey: ["trip", id] });
     }
-  }, [itineraryStatus?.job_status, queryClient, id]);
+  }, [streamStatus, queryClient, id]);
+
+  const [showRecommendationPrompt, setShowRecommendationPrompt] = React.useState(false);
+  const [destinationForPrompt, setDestinationForPrompt] = React.useState("");
   const [showItemDialog, setShowItemDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedItem, setSelectedItem] =
@@ -524,19 +546,30 @@ const TripDetail = () => {
               <div className="flex flex-wrap items-center gap-2">
                 {(trip.ai_itinerary_data || (trip.itinerary_items && trip.itinerary_items.length > 0)) ? (
                   <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => generateItinerary(trip.id)}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-2" />
-                      )}
-                      Regenerate AI Itinerary
-                    </Button>
+                    {isStreaming ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={cancelStream}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => generateItinerary(trip.id)}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 mr-2" />
+                        )}
+                        Regenerate AI Itinerary
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       onClick={() => {
@@ -551,8 +584,29 @@ const TripDetail = () => {
                 ) : null}
               </div>
             </div>
+
+            {/* Streaming thinking panel */}
+            {(isStreaming || streamStatus === "complete") && streamEvents.length > 0 && (
+              <StreamingThinkingPanel
+                events={streamEvents}
+                isComplete={streamStatus === "complete"}
+              />
+            )}
+
+            {/* Partial day cards during streaming */}
+            {isStreaming && streamingItinerary && streamingItinerary.days.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Days planned so far ({streamingItinerary.days.length}):
+                </p>
+                {streamingItinerary.days.map((day) => (
+                  <PartialDayCard key={day.day} day={day} isStreaming={false} />
+                ))}
+              </div>
+            )}
+
             {/* AI Guidance / Generation Panel */}
-            {(!trip.ai_itinerary_data ||
+            {!isStreaming && (!trip.ai_itinerary_data ||
               trip.itinerary_status === "generating" ||
               trip.itinerary_status === "failed") && (
               <Card>
@@ -898,6 +952,16 @@ const TripDetail = () => {
             onOpenChange={setShowItemDialog}
             tripId={trip.id}
             item={selectedItem}
+          />
+        )}
+
+        {/* Post-trip recommendation prompt */}
+        {trip && (
+          <TripRecommendationPrompt
+            tripId={trip.id}
+            destination={trip.destination_main ?? "your destination"}
+            open={showRecommendationPrompt}
+            onClose={() => setShowRecommendationPrompt(false)}
           />
         )}
       </div>
