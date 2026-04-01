@@ -1,3 +1,6 @@
+// This endpoint has been superseded by the SSE streaming endpoint at
+// GET /api/ai/generate-itinerary/stream
+// Kept as a 410 redirect for backward compatibility.
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { differenceInDays } from "date-fns";
@@ -143,7 +146,17 @@ async function buildRequestFromTrip(
 
 // ── Main handler ────────────────────────────────────────────────────────────
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
+  return NextResponse.json(
+    {
+      error: "This endpoint is deprecated. Use GET /api/ai/generate-itinerary/stream?tripId=<id> instead.",
+      stream_endpoint: "/api/ai/generate-itinerary/stream",
+    },
+    { status: 410 },
+  );
+}
+
+async function _legacyPOST(request: Request) {
   const supabase = getServiceClient();
 
   let tripId: string;
