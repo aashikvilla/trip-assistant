@@ -1,5 +1,6 @@
-import type { Tool, ToolResult } from "../types";
-import { sanitizePII } from "../utils";
+import type { Tool, ToolResult, LLMMessage } from "../types";
+import { createLLMProvider } from "../providers";
+import { cleanLLMOutput, sanitizePII } from "../utils";
 
 export interface SearchInput {
   query: string;
@@ -17,24 +18,22 @@ export interface SearchOutput {
 
 export class WebSearchTool implements Tool<SearchInput, SearchOutput> {
   name = "web_search";
-  description = "Search the web for information about destinations, activities, and travel tips.";
+  description = "Search for information about destinations, activities, and travel tips.";
 
   async execute(input: SearchInput, signal?: AbortSignal): Promise<ToolResult<SearchOutput>> {
     const sanitizedQuery = sanitizePII(input.query);
-    const provider = process.env.SEARCH_PROVIDER?.toLowerCase() ?? "tavily";
+    const searchProvider = process.env.SEARCH_PROVIDER?.toLowerCase();
 
     try {
-      const timeoutSignal = AbortSignal.timeout(10_000);
-      const combinedSignal = signal
-        ? AbortSignal.any([signal, timeoutSignal])
-        : timeoutSignal;
-
       let results: SearchResultItem[] = [];
 
-      if (provider === "brave") {
-        results = await this.searchBrave(sanitizedQuery, combinedSignal);
+      if (searchProvider === "tavily" && process.env.TAVILY_API_KEY) {
+        results = await this.searchTavily(sanitizedQuery, signal);
+      } else if (searchProvider === "brave" && process.env.BRAVE_SEARCH_API_KEY) {
+        results = await this.searchBrave(sanitizedQuery, signal);
       } else {
-        results = await this.searchTavily(sanitizedQuery, combinedSignal);
+        // Default: use the LLM itself to synthesize destination research
+        results = await this.searchViaLLM(sanitizedQuery, signal);
       }
 
       return { success: true, data: { results } };
@@ -44,25 +43,65 @@ export class WebSearchTool implements Tool<SearchInput, SearchOutput> {
     }
   }
 
+  /**
+   * Uses the configured LLM to generate travel research from its training knowledge.
+   * This is the default — no extra API key required.
+   */
+  private async searchViaLLM(
+    query: string,
+    signal?: AbortSignal,
+  ): Promise<SearchResultItem[]> {
+    const provider = createLLMProvider();
+
+    const messages: LLMMessage[] = [
+      {
+        role: "system",
+        content:
+          "You are a travel research assistant. Given a search query about travel, return a JSON array of up to 8 informative results drawn from your knowledge. Each result must have: title, url (use a plausible reference URL), snippet (2-3 sentence summary of useful travel information). Respond with ONLY the JSON array, no markdown fences.",
+      },
+      {
+        role: "user",
+        content: `Search query: "${query}"\n\nReturn a JSON array of travel research results.`,
+      },
+    ];
+
+    let raw = "";
+    for await (const token of provider.streamChat(messages, undefined, signal)) {
+      raw += token;
+    }
+
+    const cleaned = cleanLLMOutput(raw);
+    const parsed = JSON.parse(cleaned) as unknown;
+
+    if (!Array.isArray(parsed)) return [];
+
+    return (parsed as Array<Record<string, unknown>>)
+      .slice(0, 8)
+      .map((r) => ({
+        title: String(r.title ?? ""),
+        url: String(r.url ?? ""),
+        snippet: String(r.snippet ?? ""),
+      }))
+      .filter((r) => r.title || r.snippet);
+  }
+
   private async searchTavily(
     query: string,
-    signal: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<SearchResultItem[]> {
-    const apiKey = process.env.TAVILY_API_KEY;
-    if (!apiKey) {
-      return [];
-    }
+    const timeoutSignal = AbortSignal.timeout(10_000);
+    const combined = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        api_key: apiKey,
+        api_key: process.env.TAVILY_API_KEY,
         query,
         max_results: 10,
         search_depth: "basic",
       }),
-      signal,
+      signal: combined,
     });
 
     if (!response.ok) return [];
@@ -80,12 +119,10 @@ export class WebSearchTool implements Tool<SearchInput, SearchOutput> {
 
   private async searchBrave(
     query: string,
-    signal: AbortSignal,
+    signal?: AbortSignal,
   ): Promise<SearchResultItem[]> {
-    const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-    if (!apiKey) {
-      return [];
-    }
+    const timeoutSignal = AbortSignal.timeout(10_000);
+    const combined = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 
     const url = new URL("https://api.search.brave.com/res/v1/web/search");
     url.searchParams.set("q", query);
@@ -95,9 +132,9 @@ export class WebSearchTool implements Tool<SearchInput, SearchOutput> {
       headers: {
         Accept: "application/json",
         "Accept-Encoding": "gzip",
-        "X-Subscription-Token": apiKey,
+        "X-Subscription-Token": process.env.BRAVE_SEARCH_API_KEY!,
       },
-      signal,
+      signal: combined,
     });
 
     if (!response.ok) return [];
