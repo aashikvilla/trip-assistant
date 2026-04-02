@@ -123,7 +123,6 @@ export interface ResearchResult {
   searchQuery: string;
   results: Array<{
     title: string;
-    url: string;
     snippet: string;
   }>;
 }

@@ -1,5 +1,6 @@
-import type { Tool, ToolResult } from "../types";
-import { sanitizePII } from "../utils";
+import type { Tool, ToolResult, LLMMessage } from "../types";
+import { createLLMProvider } from "../providers";
+import { cleanLLMOutput, sanitizePII } from "../utils";
 
 export interface SearchInput {
   query: string;
@@ -7,7 +8,6 @@ export interface SearchInput {
 
 export interface SearchResultItem {
   title: string;
-  url: string;
   snippet: string;
 }
 
@@ -17,99 +17,50 @@ export interface SearchOutput {
 
 export class WebSearchTool implements Tool<SearchInput, SearchOutput> {
   name = "web_search";
-  description = "Search the web for information about destinations, activities, and travel tips.";
+  description = "Research destinations, activities, and travel tips using the LLM.";
 
   async execute(input: SearchInput, signal?: AbortSignal): Promise<ToolResult<SearchOutput>> {
     const sanitizedQuery = sanitizePII(input.query);
-    const provider = process.env.SEARCH_PROVIDER?.toLowerCase() ?? "tavily";
 
     try {
-      const timeoutSignal = AbortSignal.timeout(10_000);
-      const combinedSignal = signal
-        ? AbortSignal.any([signal, timeoutSignal])
-        : timeoutSignal;
+      const provider = createLLMProvider();
 
-      let results: SearchResultItem[] = [];
+      const messages: LLMMessage[] = [
+        {
+          role: "system",
+          content:
+            "You are a travel research assistant. Given a search query about travel, return a JSON array of up to 8 informative results from your knowledge. Each result must have: title (string), snippet (2-3 sentence summary of useful travel info). Respond with ONLY the JSON array, no markdown fences.",
+        },
+        {
+          role: "user",
+          content: `Search query: "${sanitizedQuery}"\n\nReturn a JSON array of travel research results.`,
+        },
+      ];
 
-      if (provider === "brave") {
-        results = await this.searchBrave(sanitizedQuery, combinedSignal);
-      } else {
-        results = await this.searchTavily(sanitizedQuery, combinedSignal);
+      let raw = "";
+      for await (const token of provider.streamChat(messages, undefined, signal)) {
+        raw += token;
       }
+
+      const cleaned = cleanLLMOutput(raw);
+      const parsed = JSON.parse(cleaned) as unknown;
+
+      if (!Array.isArray(parsed)) {
+        return { success: true, data: { results: [] } };
+      }
+
+      const results = (parsed as Array<Record<string, unknown>>)
+        .slice(0, 8)
+        .map((r) => ({
+          title: String(r.title ?? ""),
+          snippet: String(r.snippet ?? ""),
+        }))
+        .filter((r) => r.title || r.snippet);
 
       return { success: true, data: { results } };
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Search failed";
+      const message = err instanceof Error ? err.message : "Research failed";
       return { success: false, data: { results: [] }, error: message };
     }
-  }
-
-  private async searchTavily(
-    query: string,
-    signal: AbortSignal,
-  ): Promise<SearchResultItem[]> {
-    const apiKey = process.env.TAVILY_API_KEY;
-    if (!apiKey) {
-      return [];
-    }
-
-    const response = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: apiKey,
-        query,
-        max_results: 10,
-        search_depth: "basic",
-      }),
-      signal,
-    });
-
-    if (!response.ok) return [];
-
-    const data = await response.json() as {
-      results?: Array<{ title?: string; url?: string; content?: string }>;
-    };
-
-    return (data.results ?? []).slice(0, 10).map((r) => ({
-      title: r.title ?? "",
-      url: r.url ?? "",
-      snippet: r.content ?? "",
-    }));
-  }
-
-  private async searchBrave(
-    query: string,
-    signal: AbortSignal,
-  ): Promise<SearchResultItem[]> {
-    const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-    if (!apiKey) {
-      return [];
-    }
-
-    const url = new URL("https://api.search.brave.com/res/v1/web/search");
-    url.searchParams.set("q", query);
-    url.searchParams.set("count", "10");
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        Accept: "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": apiKey,
-      },
-      signal,
-    });
-
-    if (!response.ok) return [];
-
-    const data = await response.json() as {
-      web?: { results?: Array<{ title?: string; url?: string; description?: string }> };
-    };
-
-    return (data.web?.results ?? []).slice(0, 10).map((r) => ({
-      title: r.title ?? "",
-      url: r.url ?? "",
-      snippet: r.description ?? "",
-    }));
   }
 }

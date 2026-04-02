@@ -32,12 +32,7 @@ export const ParsedItinerarySchema = z.object({
 
 export const SearchResultSchema = z.object({
   title: z.string(),
-  url: z.string(),
   snippet: z.string(),
-});
-
-export const WebSearchOutputSchema = z.object({
-  results: z.array(SearchResultSchema).max(10),
 });
 
 export type ParsedItineraryDayZod = z.infer<typeof ParsedItineraryDaySchema>;
