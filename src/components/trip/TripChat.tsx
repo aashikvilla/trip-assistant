@@ -1,24 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   MessageCircle,
   Send,
   BarChart3,
   Loader2,
-  Plus,
   Reply,
   WifiOff,
+  Bell,
 } from 'lucide-react';
 import { useTripChat } from '@/hooks/useTripChat';
+import { useNotifications } from '@/hooks/useNotifications';
 import { ChatMessage } from './ChatMessage';
 import { CreatePollDialog } from './CreatePollDialog';
 import { ReactionPicker } from './ReactionPicker';
 import { TypingIndicator } from './TypingIndicator';
+import { VoiceRecorderButton } from './VoiceRecorderButton';
+import { VoicePlaybackProvider } from '@/contexts/VoicePlaybackContext';
 import { useConnectivity } from '@/hooks/useConnectivity';
 import { enqueueAction } from '@/lib/background-sync';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface TripChatProps {
   tripId: string;
@@ -47,8 +50,19 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
     toggleReaction,
     createPoll,
     votePoll,
+    nudgePoll,
+    isNudging,
     updateTypingIndicator,
   } = useTripChat(tripId);
+
+  const { unreadCount, markRead } = useNotifications(tripId);
+
+  // Mark notifications as read when chat is open
+  useEffect(() => {
+    if (unreadCount > 0) {
+      markRead(tripId);
+    }
+  }, [unreadCount, tripId]);
 
   // Auto-scroll to bottom when new messages arrive and user is at bottom
   useEffect(() => {
@@ -60,33 +74,22 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
   // Handle scroll events to detect when user scrolls up
   const handleScroll = () => {
     if (!messagesContainerRef.current) return;
-    
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
     const isNearBottom = scrollHeight - (scrollTop + clientHeight) < 100;
     setIsAtBottom(isNearBottom);
   };
 
-  // Load more messages when scrolling to top
   const handleScrollTop = () => {
     if (messagesContainerRef.current?.scrollTop === 0) {
       // TODO: Implement loading previous messages
-      console.log('Load previous messages...');
     }
   };
 
   // Handle typing indicators
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
-    
-    // Update typing indicator
     updateTypingIndicator(true);
-    
-    // Clear previous timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    // Set timeout to stop typing indicator
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       updateTypingIndicator(false);
     }, 2000);
@@ -98,12 +101,8 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
 
     const messageContent = message.trim();
     setMessage('');
-
-    // Stop typing indicator
     updateTypingIndicator(false);
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     if (isOffline) {
       await enqueueAction({
@@ -123,12 +122,11 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
       await sendMessage({
         content: messageContent,
         messageType: 'text',
-        replyToId: replyToMessage
+        replyToId: replyToMessage ?? undefined,
       });
       setReplyToMessage(null);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      setMessage(messageContent); // Restore message on error
+    } catch {
+      setMessage(messageContent);
     }
   };
 
@@ -141,13 +139,19 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
     question: string;
     options: string[];
     pollType: 'multiple_choice' | 'yes_no' | 'rating';
+    expiresAt?: string | null;
+    isImportant?: boolean;
   }) => {
     try {
       await createPoll(pollData);
       setShowPollDialog(false);
-    } catch (error) {
-      console.error('Failed to create poll:', error);
+    } catch {
+      // error handled by react-query
     }
+  };
+
+  const handleNudge = async (pollId: string) => {
+    await nudgePoll({ pollId });
   };
 
   if (isLoading) {
@@ -164,9 +168,9 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
       <div className="p-6 bg-white rounded-lg shadow-sm">
         <div className="text-center text-red-600">
           <p className="font-medium">Failed to load chat</p>
-          <Button 
-            variant="outline" 
-            onClick={() => window.location.reload()} 
+          <Button
+            variant="outline"
+            onClick={() => window.location.reload()}
             className="mt-2"
           >
             Try Again
@@ -177,140 +181,161 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-      {/* Chat Header */}
-      <div className="flex flex-row items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-lg">
-        <h3 className="flex items-center gap-3 text-xl font-bold text-white">
-          <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
-            <MessageCircle className="h-6 w-6 text-white flex-shrink-0" />
-          </div>
-          <span className="sm:inline">
-            <span className="sm:hidden">Chat</span>
-            <span className="hidden sm:inline">Trip Chat</span>
-          </span>
-        </h3>
-        <div className="flex gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowPollDialog(true)}
-            className="flex items-center justify-center w-11 h-11 p-0 text-white hover:bg-white/20 hover:backdrop-blur-sm rounded-xl border border-white/20 sm:w-auto sm:px-4 sm:h-auto transition-all duration-200"
-            title="Create Poll"
-          >
-            <BarChart3 className="h-5 w-5" />
-            <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm font-medium">Poll</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Messages Container */}
-      <div 
-        ref={messagesContainerRef}
-        onScroll={() => {
-          handleScroll();
-          handleScrollTop();
-        }}
-        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-transparent to-white/50"
-      >
-        <div className="flex-1 flex flex-col p-0">
-          {/* Messages Area */}
-          <div className="space-y-4">
-            {messages.length === 0 ? (
-              <div className="text-center py-12 text-gray-600">
-                <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <MessageCircle className="h-10 w-10 text-blue-600" />
-                </div>
-                <p className="text-xl font-semibold mb-3 text-gray-800">No messages yet</p>
-                <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">Start the conversation and share your thoughts about this amazing trip!</p>
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div key={msg.message_id} className="relative">
-                  <ChatMessage
-                    message={msg}
-                    onReaction={(reactionType) => handleReaction(msg.message_id, reactionType)}
-                    onReply={() => setReplyToMessage(msg.message_id)}
-                    onVote={votePoll}
-                    showReactionPicker={showReactionPicker === msg.message_id}
-                    onToggleReactionPicker={() => 
-                      setShowReactionPicker(
-                        showReactionPicker === msg.message_id ? null : msg.message_id
-                      )
-                    }
-                  />
-                </div>
-              ))
-            )}
-            
-            {/* Typing Indicators */}
-            {typingIndicators.length > 0 && (
-              <TypingIndicator indicators={typingIndicators} />
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        {/* Reply Preview */}
-        {replyToMessage && (
-          <div className="sticky bottom-0 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 p-3 sm:p-4 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-3 text-sm text-blue-700">
-              <div className="p-1.5 bg-blue-100 rounded-lg">
-                <Reply className="h-4 w-4" />
-              </div>
-              <span className="font-medium">Replying to message</span>
+    <VoicePlaybackProvider>
+      <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+        {/* Chat Header */}
+        <div className="flex flex-row items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-lg">
+          <h3 className="flex items-center gap-3 text-xl font-bold text-white">
+            <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
+              <MessageCircle className="h-6 w-6 text-white flex-shrink-0" />
             </div>
+            <span className="sm:inline">
+              <span className="sm:hidden">Chat</span>
+              <span className="hidden sm:inline">Trip Chat</span>
+            </span>
+          </h3>
+          <div className="flex gap-3 items-center">
+            {/* Notification badge */}
+            {unreadCount > 0 && (
+              <div className="relative">
+                <Bell className="h-5 w-5 text-white" />
+                <Badge className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-red-500 text-white border-0">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setReplyToMessage(null)}
-              className="h-8 w-8 rounded-lg hover:bg-blue-100 text-blue-600"
+              onClick={() => setShowPollDialog(true)}
+              className="flex items-center justify-center w-11 h-11 p-0 text-white hover:bg-white/20 hover:backdrop-blur-sm rounded-xl border border-white/20 sm:w-auto sm:px-4 sm:h-auto transition-all duration-200"
+              title="Create Poll"
             >
-              ×
+              <BarChart3 className="h-5 w-5" />
+              <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm font-medium">Poll</span>
             </Button>
           </div>
-        )}
+        </div>
 
-        {/* Message Input */}
-        <div className="sticky bottom-0 bg-gradient-to-r from-white via-blue-50/50 to-white border-t border-gray-200 p-4 shadow-lg backdrop-blur-sm z-10">
-          {isOffline && (
-            <div className="flex items-center gap-2 text-xs text-amber-600 mb-2">
-              <WifiOff className="h-3 w-3" />
-              <span>Messages will be queued and sent when online</span>
+        {/* Messages Container */}
+        <div
+          ref={messagesContainerRef}
+          onScroll={() => {
+            handleScroll();
+            handleScrollTop();
+          }}
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-transparent to-white/50"
+        >
+          <div className="flex-1 flex flex-col p-0">
+            <div className="space-y-4">
+              {messages.length === 0 ? (
+                <div className="text-center py-12 text-gray-600">
+                  <div className="bg-gradient-to-br from-blue-100 to-indigo-100 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                    <MessageCircle className="h-10 w-10 text-blue-600" />
+                  </div>
+                  <p className="text-xl font-semibold mb-3 text-gray-800">No messages yet</p>
+                  <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
+                    Start the conversation and share your thoughts about this amazing trip!
+                  </p>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div key={msg.message_id} className="relative">
+                    <ChatMessage
+                      message={msg}
+                      tripId={tripId}
+                      onReaction={(reactionType) => handleReaction(msg.message_id, reactionType)}
+                      onReply={() => setReplyToMessage(msg.message_id)}
+                      onVote={votePoll}
+                      onNudge={handleNudge}
+                      showReactionPicker={showReactionPicker === msg.message_id}
+                      onToggleReactionPicker={() =>
+                        setShowReactionPicker(
+                          showReactionPicker === msg.message_id ? null : msg.message_id
+                        )
+                      }
+                    />
+                  </div>
+                ))
+              )}
+
+              {/* Typing Indicators */}
+              {typingIndicators.length > 0 && (
+                <TypingIndicator indicators={typingIndicators} />
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Reply Preview */}
+          {replyToMessage && (
+            <div className="sticky bottom-0 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 p-3 sm:p-4 flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3 text-sm text-blue-700">
+                <div className="p-1.5 bg-blue-100 rounded-lg">
+                  <Reply className="h-4 w-4" />
+                </div>
+                <span className="font-medium">Replying to message</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setReplyToMessage(null)}
+                className="h-8 w-8 rounded-lg hover:bg-blue-100 text-blue-600"
+              >
+                ×
+              </Button>
             </div>
           )}
-          <form onSubmit={handleSendMessage} className="flex items-center gap-3 w-full">
-            <Input
-              ref={inputRef}
-              value={message}
-              onChange={handleInputChange}
-              placeholder="Share your thoughts about this trip..."
-              className="flex-1 rounded-2xl border-2 border-gray-200 px-5 py-3 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200"
-              disabled={isSendingMessage}
-              maxLength={1000}
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="h-12 w-12 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              disabled={!message.trim() || isSendingMessage}
-            >
-              {isSendingMessage ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="h-5 w-5" />
-              )}
-            </Button>
-          </form>
-        </div>
-      </div>
 
-      {/* Create Poll Dialog */}
-      <CreatePollDialog
-        open={showPollDialog}
-        onOpenChange={setShowPollDialog}
-        onCreatePoll={handlePollCreate}
-      />
-    </div>
+          {/* Message Input */}
+          <div className="sticky bottom-0 bg-gradient-to-r from-white via-blue-50/50 to-white border-t border-gray-200 p-4 shadow-lg backdrop-blur-sm z-10">
+            {isOffline && (
+              <div className="flex items-center gap-2 text-xs text-amber-600 mb-2">
+                <WifiOff className="h-3 w-3" />
+                <span>Messages will be queued and sent when online</span>
+              </div>
+            )}
+            <form onSubmit={handleSendMessage} className="flex items-center gap-3 w-full">
+              {/* Voice recorder button */}
+              <VoiceRecorderButton
+                tripId={tripId}
+                replyToId={replyToMessage}
+                onSent={() => setReplyToMessage(null)}
+              />
+
+              <Input
+                ref={inputRef}
+                value={message}
+                onChange={handleInputChange}
+                placeholder="Share your thoughts about this trip..."
+                className="flex-1 rounded-2xl border-2 border-gray-200 px-5 py-3 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200"
+                disabled={isSendingMessage}
+                maxLength={1000}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="h-12 w-12 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                disabled={!message.trim() || isSendingMessage}
+              >
+                {isSendingMessage ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
+            </form>
+          </div>
+        </div>
+
+        {/* Create Poll Dialog */}
+        <CreatePollDialog
+          open={showPollDialog}
+          onOpenChange={setShowPollDialog}
+          onCreatePoll={handlePollCreate}
+        />
+      </div>
+    </VoicePlaybackProvider>
   );
 };

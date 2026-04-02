@@ -3,10 +3,16 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
+export interface VoiceMetadata {
+  audio_url: string;
+  duration_seconds: number;
+  waveform_data: number[] | null;
+}
+
 export interface ChatMessage {
   message_id: string;
   content: string;
-  message_type: 'text' | 'image' | 'poll' | 'system';
+  message_type: 'text' | 'image' | 'poll' | 'system' | 'voice';
   reply_to_id: string | null;
   is_edited: boolean;
   created_at: string;
@@ -16,6 +22,7 @@ export interface ChatMessage {
   author_avatar: string | null;
   reactions: MessageReaction[];
   poll_data: PollData | null;
+  metadata?: VoiceMetadata | Record<string, unknown> | null;
 }
 
 export interface MessageReaction {
@@ -36,6 +43,9 @@ export interface PollData {
   };
   expires_at: string | null;
   is_closed: boolean;
+  is_important: boolean;
+  creator_id: string | null;
+  nudge_cooldown_until: string | null;
   votes: PollVote[];
 }
 
@@ -180,6 +190,17 @@ export const useTripChat = (tripId: string) => {
         {
           event: '*',
           schema: 'public',
+          table: 'trip_poll_votes'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['trip-chat', tripId] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
           table: 'trip_typing_indicators',
           filter: `trip_id=eq.${tripId}`
         },
@@ -283,19 +304,23 @@ export const useTripChat = (tripId: string) => {
 
   // Create poll mutation
   const createPollMutation = useMutation({
-    mutationFn: async ({ 
-      question, 
-      options, 
+    mutationFn: async ({
+      question,
+      options,
       pollType = 'multiple_choice',
-      settings = { multiple_votes: false, anonymous: false }
+      settings = { multiple_votes: false, anonymous: false },
+      expiresAt,
+      isImportant = false,
     }: {
       question: string;
       options: string[];
       pollType?: 'multiple_choice' | 'yes_no' | 'rating';
       settings?: { multiple_votes: boolean; anonymous: boolean };
+      expiresAt?: string | null;
+      isImportant?: boolean;
     }) => {
       if (!user) throw new Error('User not authenticated');
-      
+
       // First create the message
       const { data: message, error: messageError } = await supabase
         .from('trip_messages')
@@ -308,9 +333,9 @@ export const useTripChat = (tripId: string) => {
         })
         .select()
         .single();
-      
+
       if (messageError) throw messageError;
-      
+
       // Then create the poll
       const { data: poll, error: pollError } = await supabase
         .from('trip_polls')
@@ -319,11 +344,13 @@ export const useTripChat = (tripId: string) => {
           question,
           poll_type: pollType,
           options: options,
-          settings: JSON.stringify(settings)
+          settings: JSON.stringify(settings),
+          expires_at: expiresAt || null,
+          is_important: isImportant,
         })
         .select()
         .single();
-      
+
       if (pollError) throw pollError;
       return { message, poll };
     },
@@ -332,34 +359,59 @@ export const useTripChat = (tripId: string) => {
     },
   });
 
-  // Vote on poll mutation
+  // Vote on poll mutation — uses upsert to enforce unique (poll_id, user_id)
   const votePollMutation = useMutation({
-    mutationFn: async ({ 
-      pollId, 
-      optionIndex, 
-      rating 
+    mutationFn: async ({
+      pollId,
+      optionIndex,
+      rating
     }: {
       pollId: string;
       optionIndex: number;
       rating?: number;
     }) => {
       if (!user) throw new Error('User not authenticated');
-      
+
       const { data, error } = await supabase
         .from('trip_poll_votes')
-        .insert({
-          poll_id: pollId,
-          user_id: user.id,
-          option_index: optionIndex,
-          rating: rating || null
-        })
+        .upsert(
+          {
+            poll_id: pollId,
+            user_id: user.id,
+            option_index: optionIndex,
+            rating: rating || null
+          },
+          { onConflict: 'poll_id,user_id' }
+        )
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trip-chat', tripId] });
+    },
+  });
+
+  // Nudge non-responders mutation
+  const nudgePollMutation = useMutation({
+    mutationFn: async ({ pollId }: { pollId: string }) => {
+      const res = await fetch('/api/polls/nudge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pollId, tripId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const err: any = new Error(body.error || 'Failed to nudge');
+        err.status = res.status;
+        err.retryAfter = body.retryAfter ?? null;
+        throw err;
+      }
+      return res.json() as Promise<{ notified: number; retryAfter: null }>;
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['trip-chat', tripId] });
     },
   });
@@ -402,6 +454,8 @@ export const useTripChat = (tripId: string) => {
     isCreatingPoll: createPollMutation.isPending,
     votePoll: votePollMutation.mutate,
     isVotingPoll: votePollMutation.isPending,
+    nudgePoll: nudgePollMutation.mutateAsync,
+    isNudging: nudgePollMutation.isPending,
     updateTypingIndicator,
   };
 };
