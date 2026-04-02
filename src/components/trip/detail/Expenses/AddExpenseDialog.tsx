@@ -11,6 +11,8 @@ import { useTripMembers } from '@/hooks/useTripMembers';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { BillScanButton } from './BillScanButton';
+import type { ExtractedExpenseData } from '@/hooks/useBillScan';
 
 interface AddExpenseDialogProps {
   open: boolean;
@@ -49,6 +51,26 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
 
   const isEditing = !!expense;
   const isLoading = createExpense.isPending || updateExpense.isPending;
+  const [isScanning, setIsScanning] = useState(false);
+
+  const VALID_CATEGORIES = ['food', 'travel', 'accommodation', 'activities', 'others'] as const;
+
+  const handleScanExtracted = (data: ExtractedExpenseData) => {
+    setFormData(prev => ({
+      ...prev,
+      amount: data.amount != null ? data.amount.toString() : prev.amount,
+      description: data.description ?? prev.description,
+      date: data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : prev.date,
+      category: (VALID_CATEGORIES as readonly string[]).includes(data.category as string)
+        ? (data.category as typeof prev.category)
+        : prev.category,
+    }));
+    toast.success('Bill scanned — fields have been pre-filled. Review before submitting.');
+  };
+
+  const handleScanError = (message: string) => {
+    toast.error(message);
+  };
 
   // Keep defaults/prefill in sync when dialog opens, user or members load, or editing item changes
   useEffect(() => {
@@ -153,6 +175,16 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Scan Bill */}
+          {!isEditing && (
+            <BillScanButton
+              onExtracted={handleScanExtracted}
+              onError={handleScanError}
+              onScanningChange={setIsScanning}
+              disabled={isLoading}
+            />
+          )}
+
           {/* Amount */}
           <div className="space-y-2">
             <Label htmlFor="amount">Amount *</Label>
@@ -307,7 +339,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || isScanning}>
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isEditing ? 'Update Expense' : 'Add Expense'}
             </Button>
