@@ -11,8 +11,9 @@ import {
   BarChart3 
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { ChatMessage as ChatMessageType, PollData } from '@/hooks/useTripChat';
+import { ChatMessage as ChatMessageType, PollData, VoiceMetadata } from '@/hooks/useTripChat';
 import { PollComponent } from './PollComponent';
+import { VoicePlayer } from './VoicePlayer';
 import { ReactionPicker } from './ReactionPicker';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -45,18 +46,22 @@ const getReactionEmoji = (reactionType: string) => {
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  tripId: string;
   onReaction: (reactionType: string) => void;
   onReply: () => void;
   onVote: (data: { pollId: string; optionIndex: number; rating?: number }) => void;
+  onNudge?: (pollId: string) => Promise<void>;
   showReactionPicker: boolean;
   onToggleReactionPicker: () => void;
 };
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
+  tripId,
   onReaction,
   onReply,
   onVote,
+  onNudge,
   showReactionPicker,
   onToggleReactionPicker
 }) => {
@@ -178,14 +183,24 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           )}
           
           <div className="space-y-2">
-            {message.message_type !== 'poll' && (
+            {message.message_type === 'voice' && message.metadata ? (
+              <VoicePlayer
+                messageId={message.message_id}
+                audioUrl={(message.metadata as VoiceMetadata).audio_url}
+                durationSeconds={(message.metadata as VoiceMetadata).duration_seconds}
+                waveformData={(message.metadata as VoiceMetadata).waveform_data}
+                isOwnMessage={isOwnMessage}
+              />
+            ) : message.message_type !== 'poll' ? (
               <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
-            )}
-            
+            ) : null}
+
             {message.message_type === 'poll' && message.poll_data && (
               <PollComponent
                 poll={message.poll_data}
+                tripId={tripId}
                 onVote={onVote}
+                onNudge={onNudge}
                 currentUserId={user?.id ?? null}
               />
             )}

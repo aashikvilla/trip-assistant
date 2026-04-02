@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/Card';
+import { Switch } from '@/components/ui/switch';
 import { Plus, X } from 'lucide-react';
 
 interface CreatePollDialogProps {
@@ -27,6 +28,8 @@ interface CreatePollDialogProps {
     question: string;
     options: string[];
     pollType: 'multiple_choice' | 'yes_no' | 'rating';
+    expiresAt?: string | null;
+    isImportant?: boolean;
   }) => void;
 }
 
@@ -38,17 +41,15 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({
   const [question, setQuestion] = useState('');
   const [pollType, setPollType] = useState<'multiple_choice' | 'yes_no' | 'rating'>('multiple_choice');
   const [options, setOptions] = useState<string[]>(['', '']);
+  const [expiresAt, setExpiresAt] = useState<string>('');
+  const [isImportant, setIsImportant] = useState(false);
 
   const handleAddOption = () => {
-    if (options.length < 10) {
-      setOptions([...options, '']);
-    }
+    if (options.length < 10) setOptions([...options, '']);
   };
 
   const handleRemoveOption = (index: number) => {
-    if (options.length > 2) {
-      setOptions(options.filter((_, i) => i !== index));
-    }
+    if (options.length > 2) setOptions(options.filter((_, i) => i !== index));
   };
 
   const handleOptionChange = (index: number, value: string) => {
@@ -61,7 +62,6 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({
     if (!question.trim()) return;
 
     let finalOptions: string[] = [];
-    
     if (pollType === 'multiple_choice') {
       finalOptions = options.filter(opt => opt.trim()).map(opt => opt.trim());
       if (finalOptions.length < 2) return;
@@ -75,25 +75,32 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({
       question: question.trim(),
       options: finalOptions,
       pollType,
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+      isImportant,
     });
 
-    // Reset form
+    resetForm();
+  };
+
+  const resetForm = () => {
     setQuestion('');
     setPollType('multiple_choice');
     setOptions(['', '']);
+    setExpiresAt('');
+    setIsImportant(false);
   };
 
   const handleCancel = () => {
-    setQuestion('');
-    setPollType('multiple_choice');
-    setOptions(['', '']);
+    resetForm();
     onOpenChange(false);
   };
 
-  const isValid = question.trim() && (
-    pollType !== 'multiple_choice' || 
-    options.filter(opt => opt.trim()).length >= 2
-  );
+  const isValid =
+    question.trim() &&
+    (pollType !== 'multiple_choice' || options.filter(opt => opt.trim()).length >= 2);
+
+  // Min datetime for the picker — now
+  const minDatetime = new Date().toISOString().slice(0, 16);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +181,7 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({
             </div>
           )}
 
-          {/* Preview */}
+          {/* Preview for non-multiple-choice */}
           {pollType !== 'multiple_choice' && (
             <Card>
               <CardContent className="pt-4">
@@ -199,6 +206,31 @@ export const CreatePollDialog: React.FC<CreatePollDialogProps> = ({
               </CardContent>
             </Card>
           )}
+
+          {/* Deadline picker */}
+          <div className="space-y-2">
+            <Label htmlFor="expires-at">Deadline (optional)</Label>
+            <Input
+              id="expires-at"
+              type="datetime-local"
+              min={minDatetime}
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="text-sm"
+            />
+          </div>
+
+          {/* Mark as Important toggle */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="is-important" className="cursor-pointer">
+              Mark as Important
+            </Label>
+            <Switch
+              id="is-important"
+              checked={isImportant}
+              onCheckedChange={setIsImportant}
+            />
+          </div>
         </div>
 
         <DialogFooter>
