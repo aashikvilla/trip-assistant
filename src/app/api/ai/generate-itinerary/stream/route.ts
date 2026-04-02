@@ -119,6 +119,34 @@ export async function GET(request: Request) {
 
       try {
         await orchestrator.run(tripId, job.id);
+      } catch (err) {
+        // Catch any errors not handled by orchestrator and ensure trips table is updated
+        const message = err instanceof Error ? err.message : "Unknown error";
+
+        await supabase
+          .from("itinerary_generation_jobs")
+          .update({
+            status: "failed",
+            error_message: message,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", job.id);
+
+        await supabase
+          .from("trips")
+          .update({
+            itinerary_status: "failed",
+            itinerary_generated_at: new Date().toISOString(),
+          })
+          .eq("id", tripId);
+
+        // Emit error event
+        emitter.emit({
+          type: "error",
+          timestamp: new Date().toISOString(),
+          message,
+          recoverable: false,
+        });
       } finally {
         try {
           controller.close();
