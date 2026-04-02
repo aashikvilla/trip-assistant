@@ -7,18 +7,39 @@ export const useItineraryGeneration = () => {
 
   const generateItinerary = useMutation({
     mutationFn: async (tripId: string) => {
-      const res = await fetch("/api/ai/generate-itinerary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tripId }),
+      return new Promise<{ success: boolean }>((resolve, reject) => {
+        const eventSource = new EventSource(
+          `/api/ai/generate-itinerary/stream?tripId=${encodeURIComponent(tripId)}`
+        );
+
+        let isResolved = false;
+
+        eventSource.onopen = () => {
+          if (!isResolved) {
+            isResolved = true;
+            resolve({ success: true });
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          eventSource.close();
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error("Failed to start itinerary generation"));
+          }
+        };
+
+        // Keep listening but don't block the mutation
+        eventSource.onmessage = () => {
+          // Stream events continue in the background
+          // Job status polling will handle updates
+        };
+
+        // Auto-close after 10 seconds to avoid keeping connection open indefinitely
+        setTimeout(() => {
+          eventSource.close();
+        }, 10000);
       });
-
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: "Request failed" }));
-        throw new Error(error.error || `Generation failed (${res.status})`);
-      }
-
-      return res.json() as Promise<{ jobId: string; status: string }>;
     },
     onSuccess: (_, tripId) => {
       queryClient.invalidateQueries({ queryKey: ["itinerary-status", tripId] });
@@ -29,11 +50,7 @@ export const useItineraryGeneration = () => {
         description: "Your AI itinerary is being generated. This may take 30-60 seconds.",
       });
     },
-    onError: (error, tripId) => {
-      if (tripId) {
-        queryClient.invalidateQueries({ queryKey: ["itinerary-status", tripId] });
-        queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      }
+    onError: (error) => {
       toast({
         title: "Generation Failed",
         description: error instanceof Error ? error.message : "Please try again.",
