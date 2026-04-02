@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { format, addDays, differenceInDays, parseISO, startOfDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, List, Map } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/badge';
@@ -8,25 +8,28 @@ import { EnhancedItineraryItem, ActivityType, ACTIVITY_TYPE_COLORS } from '@/typ
 import { DayView } from './DayView';
 import { WeekView } from './WeekView';
 import { ActivityCard } from './ActivityCard';
+import { MapViewWrapper } from './MapViewWrapper';
 
 interface ItineraryCalendarProps {
   tripId: string;
   startDate: string;
   endDate: string;
   activities: EnhancedItineraryItem[];
+  destinations?: string[];
   onActivityClick?: (activity: EnhancedItineraryItem) => void;
   onActivityMove?: (activityId: string, newDay: number, newTimeSlot: string) => void;
   onActivityUpdate?: (activityId: string, updates: Partial<EnhancedItineraryItem>) => void;
   className?: string;
 }
 
-type ViewType = 'day' | 'week' | 'list';
+type ViewType = 'day' | 'week' | 'list' | 'map';
 
 export function ItineraryCalendar({
   tripId,
   startDate,
   endDate,
   activities,
+  destinations = [],
   onActivityClick,
   onActivityMove,
   onActivityUpdate,
@@ -132,6 +135,14 @@ export function ItineraryCalendar({
                 <List className="w-4 h-4 mr-1" />
                 List
               </Button>
+              <Button
+                variant={currentView === 'map' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCurrentView('map')}
+              >
+                <Map className="w-4 h-4 mr-1" />
+                Map
+              </Button>
             </div>
           </div>
           
@@ -146,8 +157,8 @@ export function ItineraryCalendar({
         </CardHeader>
       </Card>
 
-      {/* Day navigation for day view */}
-      {currentView === 'day' && (
+      {/* Day navigation for day and map views */}
+      {currentView !== 'map' && currentView === 'day' && (
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -253,6 +264,17 @@ export function ItineraryCalendar({
               </Card>
             ))}
           </div>
+        )}
+
+        {currentView === 'map' && (
+          <MapViewWrapper
+            tripId={tripId}
+            startDate={startDate}
+            endDate={endDate}
+            destinations={destinations}
+            activities={activities}
+            onActivityClick={onActivityClick}
+          />
         )}
       </div>
     </div>
