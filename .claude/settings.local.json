@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Bash(git commit -m 'chore: remove completed .kiro feature plans:*)"
+      "Bash(git commit -m 'chore: remove completed .kiro feature plans:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs ls:*)",
+      "Bash(npx next:*)",
+      "mcp__claude_ai_Vercel__search_vercel_documentation",
+      "WebSearch"
     ]
   }
 }

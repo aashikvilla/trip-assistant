@@ -1,7 +1,6 @@
 import { TravelStyle, TripVibe, Budget } from './enums';
 
-// Enhanced N8N request interface
-export interface EnhancedN8NRequest {
+export interface EnhancedItineraryRequest {
   trip_details: {
     destinations: string[];
     trip_name: string;
@@ -21,11 +20,10 @@ export interface EnhancedN8NRequest {
     interests: string[];
   }>;
   global_preferences: {
-    dietary: string[]; // Dynamically aggregated, deduplicated
+    dietary: string[];
   };
 }
 
-// Enhanced response interfaces
 export interface HotelRecommendation {
   name: string;
   location: string;
@@ -53,7 +51,7 @@ export interface DayItinerary {
   activities: ActivityDetail[];
 }
 
-export interface EnhancedN8NResponse {
+export interface EnhancedItineraryResponse {
   output: {
     hotel_recommendations: HotelRecommendation[];
     local_travel: LocalTravelInfo;

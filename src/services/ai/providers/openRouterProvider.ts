@@ -28,7 +28,7 @@ export class OpenRouterProvider implements LLMProvider {
       model: this.model,
       messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
       stream: true,
-      max_tokens: 8000,
+      max_tokens: 2000,
       temperature: 0.7,
     };
 

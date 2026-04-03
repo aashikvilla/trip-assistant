@@ -1,6 +1,6 @@
-// Comprehensive N8N request and response types
+// AI itinerary request and response types
 
-export interface N8NTripDetails {
+export interface TripDetails {
   destinations: string[];
   trip_name: string;
   trip_length_days: number;
@@ -12,38 +12,36 @@ export interface N8NTripDetails {
   vibe: string;
   budget: 'low' | 'mid' | 'high';
   activity?: 'light' | 'moderate' | 'active';
-  // Optional duplicate field for workflows expecting `activity_level`
   activity_level?: 'light' | 'moderate' | 'active';
   must_do: string[];
   description: string;
 }
 
-// Define the N8NTraveler type with all possible property types
-export type N8NTraveler = {
+export type Traveler = {
   id: string;
   interests: string[];
   dietary_restrictions: string[];
   [key: string]: string | string[] | number | boolean | undefined | null | Record<string, unknown>;
 };
 
-export interface N8NGlobalPreferences {
+export interface GlobalPreferences {
   dietary: string[];
 }
 
-export interface N8NComprehensiveRequest {
-  trip_details: N8NTripDetails;
-  travelers: N8NTraveler[];
-  global_preferences: N8NGlobalPreferences;
+export interface ItineraryRequest {
+  trip_details: TripDetails;
+  travelers: Traveler[];
+  global_preferences: GlobalPreferences;
 }
 
-export interface N8NHotelRecommendation {
+export interface HotelRecommendation {
   name: string;
   location: string;
   description: string;
   link?: string;
 }
 
-export interface N8NActivity {
+export interface ItineraryActivity {
   time_slot: string;
   activity_name: string;
   description: string;
@@ -51,20 +49,20 @@ export interface N8NActivity {
   link?: string;
 }
 
-export interface N8NItineraryDay {
+export interface ItineraryDay {
   day_number: number;
   title: string;
-  activities: N8NActivity[];
+  activities: ItineraryActivity[];
 }
 
-export interface N8NComprehensiveOutput {
-  hotel_recommendations: N8NHotelRecommendation[];
-  itinerary: N8NItineraryDay[];
+export interface ItineraryOutput {
+  hotel_recommendations: HotelRecommendation[];
+  itinerary: ItineraryDay[];
   closing_note: string;
 }
 
-export interface N8NComprehensiveResponse {
-  output: N8NComprehensiveOutput;
+export interface ItineraryResponse {
+  output: ItineraryOutput;
 }
 
 // Database mapping types

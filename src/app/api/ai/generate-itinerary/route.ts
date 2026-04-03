@@ -7,11 +7,11 @@ import { differenceInDays } from "date-fns";
 import { buildSystemPrompt, buildUserPrompt, parseAIResponse } from "@/services/ai/promptBuilder";
 import type { Database } from "@/integrations/supabase/types";
 import type {
-  N8NComprehensiveRequest,
-  N8NTripDetails,
-  N8NTraveler,
-  N8NGlobalPreferences,
-} from "@/types/n8n";
+  ItineraryRequest,
+  TripDetails,
+  Traveler,
+  GlobalPreferences,
+} from "@/types/ai-itinerary";
 import type { TablesInsert } from "@/integrations/supabase/types";
 
 type Json =
@@ -41,7 +41,7 @@ interface MemberRow {
 async function buildRequestFromTrip(
   tripId: string,
   supabase: ReturnType<typeof getServiceClient>,
-): Promise<N8NComprehensiveRequest> {
+): Promise<ItineraryRequest> {
   const { data: trip, error: tripError } = await supabase
     .from("trips")
     .select("*")
@@ -89,7 +89,7 @@ async function buildRequestFromTrip(
     }
   }
 
-  const tripDetails: N8NTripDetails = {
+  const tripDetails: TripDetails = {
     destinations,
     trip_name: trip.name || "My Trip",
     trip_length_days: tripLengthDays,
@@ -106,7 +106,7 @@ async function buildRequestFromTrip(
   };
 
   // Process members
-  const travelers: N8NTraveler[] = [];
+  const travelers: Traveler[] = [];
   const dietarySet = new Set<string>();
 
   const safeStringArray = (value: unknown): string[] => {
@@ -139,7 +139,7 @@ async function buildRequestFromTrip(
     dietarySet.add(d.toLowerCase().trim()),
   );
 
-  const globalPreferences: N8NGlobalPreferences = { dietary: Array.from(dietarySet) };
+  const globalPreferences: GlobalPreferences = { dietary: Array.from(dietarySet) };
 
   return { trip_details: tripDetails, travelers, global_preferences: globalPreferences };
 }

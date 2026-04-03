@@ -1,15 +1,5 @@
 import { differenceInDays } from "date-fns";
 
-// Legacy interfaces kept for AIItineraryDisplay compatibility
-export interface N8NItineraryRequest {
-  country: string;
-  duration_in_days: number;
-}
-
-export interface N8NItineraryResponse {
-  output: string;
-}
-
 export interface ParsedItineraryDay {
   day: number;
   title: string;

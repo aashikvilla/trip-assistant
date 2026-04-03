@@ -1,4 +1,4 @@
-import type { N8NComprehensiveRequest, N8NComprehensiveOutput } from "@/types/n8n";
+import type { ItineraryRequest, ItineraryOutput } from "@/types/ai-itinerary";
 
 /**
  * Builds the system prompt for Claude itinerary generation.
@@ -48,7 +48,7 @@ Rules:
 /**
  * Builds the user prompt from trip request data.
  */
-export function buildUserPrompt(request: N8NComprehensiveRequest): string {
+export function buildUserPrompt(request: ItineraryRequest): string {
   const { trip_details, travelers, global_preferences } = request;
 
   const parts: string[] = [
@@ -92,7 +92,7 @@ export function buildUserPrompt(request: N8NComprehensiveRequest): string {
  * Parses Claude's JSON response into the expected output shape.
  * Throws if the response is not valid JSON or missing required fields.
  */
-export function parseAIResponse(text: string): N8NComprehensiveOutput {
+export function parseAIResponse(text: string): ItineraryOutput {
   // Strip markdown code fences if present
   let cleaned = text.trim();
   if (cleaned.startsWith("```")) {
