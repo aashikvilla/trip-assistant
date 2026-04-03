@@ -8,7 +8,7 @@ export interface TripNotification {
   trip_id: string;
   poll_id: string | null;
   user_id: string;
-  type: 'poll_deadline_24h' | 'poll_overdue' | 'poll_nudge';
+  type: 'poll_deadline_24h' | 'poll_overdue' | 'poll_nudge' | 'trip_invitation' | 'invitation_accepted';
   message: string;
   link: string | null;
   is_read: boolean;

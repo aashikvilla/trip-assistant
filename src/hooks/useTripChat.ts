@@ -116,7 +116,8 @@ export const useTripChat = (tripId: string) => {
             author_name: message.author ? `${message.author.first_name} ${message.author.last_name}`.trim() : 'Anonymous',
             author_avatar: message.author?.avatar_url || null,
             reactions: [],
-            poll_data: null
+            poll_data: null,
+            metadata: message.metadata || null,
           }));
         }
         throw error;
@@ -221,13 +222,14 @@ export const useTripChat = (tripId: string) => {
 
   // Send message mutation
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ content, messageType = 'text', replyToId }: { 
-      content: string; 
-      messageType?: 'text' | 'image' | 'poll' | 'system';
+    mutationFn: async ({ content, messageType = 'text', replyToId, metadata }: {
+      content: string;
+      messageType?: 'text' | 'image' | 'poll' | 'system' | 'voice';
       replyToId?: string;
+      metadata?: Record<string, unknown>;
     }) => {
       if (!user) throw new Error('User not authenticated');
-      
+
       const { data, error } = await supabase
         .from('trip_messages')
         .insert({
@@ -236,11 +238,11 @@ export const useTripChat = (tripId: string) => {
           trip_id: tripId,
           message_type: messageType,
           reply_to_id: replyToId || null,
-          metadata: {}
+          metadata: metadata || {}
         })
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },

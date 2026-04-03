@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Mic, Loader2, AlertCircle, X } from 'lucide-react';
+import { Mic, Loader2, AlertCircle, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +13,7 @@ interface VoiceRecorderButtonProps {
 
 export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
   tripId,
-  replyToId,
+  replyToId = null,
   onSent,
 }) => {
   const { user } = useAuth();
@@ -24,6 +24,7 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
       audioUrl,
       durationSeconds,
       waveformData,
+      replyToId: replyId,
     }: {
       messageId: string;
       audioUrl: string;
@@ -38,7 +39,7 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
         author_id: user.id,
         trip_id: tripId,
         message_type: 'voice',
-        reply_to_id: replyToId || null,
+        reply_to_id: replyId || null,
         metadata: {
           audio_url: audioUrl,
           duration_seconds: durationSeconds,
@@ -47,7 +48,7 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
       });
       if (error) throw error;
     },
-    [user, tripId, replyToId]
+    [user, tripId]
   );
 
   const {
@@ -60,7 +61,7 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
     stopRecording,
     cancelRecording,
     retryUpload,
-  } = useVoiceRecorder(tripId, onSent, sendVoiceMessage);
+  } = useVoiceRecorder(tripId, replyToId, onSent, sendVoiceMessage);
 
   if (!isSupported) return null;
 
@@ -70,34 +71,41 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
+  // WhatsApp-style recording bar
   if (state === 'recording') {
     return (
-      <div className="flex items-center gap-2">
-        {/* Cancel swipe affordance */}
-        <span className="text-xs text-gray-500 select-none">Slide to cancel</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100"
-          onPointerUp={cancelRecording}
-          onPointerLeave={cancelRecording}
+      <div className="flex items-center gap-2 flex-1 bg-white rounded-2xl border-2 border-red-300 px-3 py-2 shadow-sm animate-in fade-in duration-200">
+        {/* Cancel button */}
+        <button
+          className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          onClick={cancelRecording}
+          aria-label="Cancel recording"
         >
           <X className="h-4 w-4" />
-        </Button>
-        {/* Elapsed time */}
-        <span className="text-xs font-mono text-red-600 min-w-[40px]">
-          {formatTime(elapsedSeconds)}
-        </span>
-        {/* Pulsing red record button — release to send */}
+        </button>
+
+        {/* Red pulsing dot + timer */}
+        <div className="flex items-center gap-2 flex-1">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+          </span>
+          <span className="text-sm font-mono text-red-600 tabular-nums">
+            {formatTime(elapsedSeconds)}
+          </span>
+          <span className="text-xs text-gray-400 flex-1 text-center">
+            Recording...
+          </span>
+        </div>
+
+        {/* Send button */}
         <button
-          className="relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full bg-red-600 text-white shadow-lg"
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
           style={{ touchAction: 'none' }}
-          onPointerUp={stopRecording}
-          onPointerLeave={cancelRecording}
-          aria-label="Release to send voice message"
+          onClick={stopRecording}
+          aria-label="Send voice message"
         >
-          <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-60" />
-          <Mic className="h-5 w-5 relative z-10" />
+          <Send className="h-4 w-4" />
         </button>
       </div>
     );
@@ -105,25 +113,23 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
 
   if (state === 'processing') {
     return (
-      <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full" disabled>
+      <div className="flex items-center justify-center w-11 h-11">
         <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-      </Button>
+      </div>
     );
   }
 
   if (state === 'error') {
     return (
       <div className="flex flex-col items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-11 w-11 rounded-full text-red-500 hover:bg-red-50"
+        <button
+          className="flex items-center justify-center w-11 h-11 rounded-full text-red-500 hover:bg-red-50 transition-colors"
           onClick={retryUpload}
           title={errorMessage || 'Error'}
         >
           <AlertCircle className="h-5 w-5" />
-        </Button>
-        <span className="text-xs text-red-500">Retry</span>
+        </button>
+        <span className="text-[10px] text-red-500">Retry</span>
       </div>
     );
   }
@@ -131,16 +137,19 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
   return (
     <div className="flex flex-col items-center">
       <button
-        className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+        className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
         style={{ touchAction: 'none' }}
-        onPointerDown={startRecording}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          startRecording();
+        }}
         aria-label="Hold to record voice message"
         title="Hold to record"
       >
         <Mic className="h-5 w-5" />
       </button>
       {hintMessage && (
-        <span className="text-xs text-amber-600 whitespace-nowrap">{hintMessage}</span>
+        <span className="text-[10px] text-amber-600 whitespace-nowrap">{hintMessage}</span>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { TripsList } from './TripsList';
 import { CreateTripDialog } from './CreateTripDialog';
 import { JoinTripDialog } from './JoinTripDialog';
+import { PendingInvitations } from './PendingInvitations';
 import { TravelPreferencesDialog } from '@/components/onboarding/TravelPreferencesDialog';
 import Link from "next/link";
 import { useDashboardStats } from '@/hooks/useDashboardStats';
@@ -104,6 +105,9 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Pending Invitations */}
+        <PendingInvitations />
 
         {/* Trips List */}
         <TripsList />

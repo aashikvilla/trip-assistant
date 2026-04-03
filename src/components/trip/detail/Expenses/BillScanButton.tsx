@@ -1,6 +1,6 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Loader2, ScanLine } from "lucide-react";
+import { Loader2, Camera, Upload } from "lucide-react";
 import { useBillScan, type ExtractedExpenseData } from "@/hooks/useBillScan";
 
 const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
@@ -19,35 +19,24 @@ export const BillScanButton: React.FC<BillScanButtonProps> = ({
   onScanningChange,
   disabled = false,
 }) => {
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { scan, isScanning } = useBillScan();
+  const [showOptions, setShowOptions] = useState(false);
 
-  // Notify parent whenever scanning state changes
   React.useEffect(() => {
     onScanningChange?.(isScanning);
   }, [isScanning, onScanningChange]);
 
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Reset so the same file can be re-selected if needed
-    e.target.value = "";
-
-    if (!file) return;
-
+  const processFile = async (file: File) => {
     if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
       onError("Please upload a JPEG, PNG, WEBP, or HEIC image");
       return;
     }
-
     if (file.size > MAX_FILE_SIZE_BYTES) {
       onError("File must be under 10 MB");
       return;
     }
-
     try {
       const data = await scan(file);
       onExtracted(data);
@@ -57,27 +46,73 @@ export const BillScanButton: React.FC<BillScanButtonProps> = ({
     }
   };
 
-  return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleButtonClick}
-        disabled={disabled || isScanning}
-        className="w-full"
-      >
-        {isScanning ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Scanning...
-          </>
-        ) : (
-          <>
-            <ScanLine className="h-4 w-4 mr-2" />
-            Scan Bill
-          </>
-        )}
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await processFile(file);
+    setShowOptions(false);
+  };
+
+  if (isScanning) {
+    return (
+      <Button type="button" variant="outline" disabled className="w-full">
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        Extracting bill details...
       </Button>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {!showOptions ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowOptions(true)}
+          disabled={disabled}
+          className="w-full"
+        >
+          <Camera className="h-4 w-4 mr-2" />
+          Add Bill Photo
+        </Button>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={disabled}
+            className="text-sm"
+          >
+            <Camera className="h-4 w-4 mr-1.5" />
+            Take Photo
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled}
+            className="text-sm"
+          >
+            <Upload className="h-4 w-4 mr-1.5" />
+            Upload Image
+          </Button>
+        </div>
+      )}
+
+      {/* Camera capture input (opens camera on mobile PWA) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+        aria-hidden="true"
+      />
+
+      {/* Regular file upload input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -86,6 +121,6 @@ export const BillScanButton: React.FC<BillScanButtonProps> = ({
         onChange={handleFileChange}
         aria-hidden="true"
       />
-    </>
+    </div>
   );
 };

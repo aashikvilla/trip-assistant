@@ -29,6 +29,7 @@ function getSupportedMimeType(): string | null {
 
 export function useVoiceRecorder(
   tripId: string,
+  replyToId: string | null,
   onSent: (messageId: string) => void,
   sendVoiceMessage: (params: {
     messageId: string;
@@ -116,6 +117,7 @@ export function useVoiceRecorder(
           audioUrl,
           durationSeconds,
           waveformData,
+          replyToId,
         });
         retainedBlobRef.current = null;
         retainedMessageIdRef.current = null;
