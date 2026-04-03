@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -24,9 +23,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Mail,
   Link as LinkIcon,
@@ -39,6 +38,7 @@ import {
   Eye,
   Check,
   Loader2,
+  Share2,
 } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 
@@ -59,80 +59,53 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
   tripName,
   tripCode,
 }) => {
-  const [activeTab, setActiveTab] = useState("email");
+  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<TripMemberRole>("viewer");
   const [isLoading, setIsLoading] = useState(false);
   const [shareableLink, setShareableLink] = useState("");
-  const [invitationToken, setInvitationToken] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const { toast } = useToast();
 
   const roleOptions = [
-    {
-      value: "viewer" as TripMemberRole,
-      label: "Viewer",
-      icon: Eye,
-      description: "Can view trip details but cannot edit",
-    },
-    {
-      value: "editor" as TripMemberRole,
-      label: "Editor",
-      icon: Edit,
-      description: "Can view and edit trip details",
-    },
-    {
-      value: "owner" as TripMemberRole,
-      label: "Owner",
-      icon: Crown,
-      description: "Full control over the trip",
-    },
+    { value: "viewer" as TripMemberRole, label: "Viewer", icon: Eye, description: "Can view trip details" },
+    { value: "editor" as TripMemberRole, label: "Editor", icon: Edit, description: "Can view and edit" },
+    { value: "owner" as TripMemberRole, label: "Owner", icon: Crown, description: "Full control" },
   ];
 
   const generateInvitation = async () => {
     setIsLoading(true);
-
     try {
-      // Generate invitation code using the database function
-      const { data: codeData, error: codeError } = await supabase.rpc(
-        "generate_invitation_code"
-      );
-
+      const { data: codeData, error: codeError } = await supabase.rpc("generate_invitation_code");
       if (codeError) throw codeError;
 
       const code = codeData;
       const token = crypto.randomUUID();
 
-      // Create invitation record
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("trip_invitations")
         .insert({
           trip_id: tripId,
-          invited_by: (await supabase.auth.getUser()).data.user?.id || "",
-          email: email || "placeholder@example.com", // For link/code invitations
+          invited_by: user?.id || "",
+          email: "link-invite@placeholder.local",
           invitation_code: code,
           invitation_token: token,
           role: role,
-        })
-        .select()
-        .single();
+        });
 
       if (error) throw error;
 
       setGeneratedCode(code);
-      setInvitationToken(token);
       setShareableLink(`${window.location.origin}/invite/${token}`);
-
-      toast({
-        title: "Invitation created!",
-        description: "Your invitation is ready to share.",
-      });
+      return { code, token, link: `${window.location.origin}/invite/${token}` };
     } catch (error: unknown) {
       toast({
         title: "Error creating invitation",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -140,27 +113,44 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
 
   const sendEmailInvitation = async () => {
     if (!email.trim()) {
-      toast({
-        title: "Email required",
-        description: "Please enter an email address to send the invitation.",
-        variant: "destructive",
-      });
+      toast({ title: "Email required", description: "Please enter an email address.", variant: "destructive" });
       return;
     }
-
     setIsLoading(true);
+    setEmailSent(false);
 
     try {
-      await generateInvitation();
-
-      // In a real app, you would send an email here
-      // For now, we'll just show a success message
-      toast({
-        title: "Invitation sent!",
-        description: `An invitation has been sent to ${email}`,
+      const res = await fetch('/api/invitations/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          tripId,
+          role,
+          invitedBy: user?.id,
+        }),
       });
 
-      setEmail("");
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Error", description: data.error || "Failed to send invitation", variant: "destructive" });
+        return;
+      }
+
+      setEmailSent(true);
+      const hint = data.invitation?.userExists
+        ? "They'll see a notification in the app."
+        : "They'll get the invite when they sign up.";
+
+      toast({
+        title: "Invitation sent!",
+        description: `Invitation created for ${email}. ${hint}`,
+      });
+
+      // Also show the link for sharing
+      if (data.invitation?.link) {
+        setShareableLink(data.invitation.link);
+      }
     } catch (error: unknown) {
       toast({
         title: "Error sending invitation",
@@ -172,19 +162,28 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
     }
   };
 
+  const shareLink = async (link: string) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Join ${tripName} on Vibe Trip`,
+          text: `You're invited to join "${tripName}"! Click the link to join:`,
+          url: link,
+        });
+        return;
+      } catch {
+        // Fallback to clipboard
+      }
+    }
+    await copyToClipboard(link, "Link");
+  };
+
   const copyToClipboard = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast({
-        title: "Copied!",
-        description: `${type} copied to clipboard.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: "Please copy the text manually.",
-        variant: "destructive",
-      });
+      toast({ title: "Copied!", description: `${type} copied to clipboard.` });
+    } catch {
+      toast({ title: "Copy failed", description: "Please copy the text manually.", variant: "destructive" });
     }
   };
 
@@ -193,8 +192,7 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
     setRole("viewer");
     setGeneratedCode("");
     setShareableLink("");
-    setInvitationToken("");
-    setActiveTab("email");
+    setEmailSent(false);
   };
 
   const handleClose = () => {
@@ -206,75 +204,193 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Invite Member to {tripName}</DialogTitle>
-          {/* <DialogDescription>
-            Choose how you'd like to invite someone to join your trip
-          </DialogDescription> */}
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Invite to {tripName}
+          </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="permanent-code" className="w-full">
-          {/* commenting for now, would implement later
-          
+        {/* Role selector */}
+        <div className="space-y-2">
+          <Label>Member Role</Label>
+          <Select value={role} onValueChange={(value: TripMemberRole) => setRole(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {roleOptions.map((option) => {
+                const IconComponent = option.icon;
+                return (
+                  <SelectItem key={option.value} value={option.value}>
+                    <div className="flex items-center gap-2">
+                      <IconComponent className="h-4 w-4" />
+                      <span>{option.label}</span>
+                      <span className="text-xs text-muted-foreground">— {option.description}</span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Tabs defaultValue="email" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="permanent-code" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Trip Code
+            <TabsTrigger value="email" className="text-xs gap-1">
+              <Mail className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Email</span>
             </TabsTrigger>
-            <TabsTrigger value="email" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Email
+            <TabsTrigger value="link" className="text-xs gap-1">
+              <LinkIcon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Link</span>
             </TabsTrigger>
-            <TabsTrigger value="link" className="flex items-center gap-2">
-              <LinkIcon className="h-4 w-4" />
-              Link
+            <TabsTrigger value="code" className="text-xs gap-1">
+              <Hash className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Code</span>
             </TabsTrigger>
-            <TabsTrigger value="code" className="flex items-center gap-2">
-              <Hash className="h-4 w-4" />
-              Code
+            <TabsTrigger value="trip-code" className="text-xs gap-1">
+              <Users className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Trip Code</span>
             </TabsTrigger>
           </TabsList>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Member Role</Label>
-              <Select value={role} onValueChange={(value: TripMemberRole) => setRole(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {roleOptions.map((option) => {
-                    const IconComponent = option.icon;
-                    return (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <IconComponent className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">{option.label}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {option.description}
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-          </div> */}
+          {/* Email Tab */}
+          <TabsContent value="email" className="space-y-4 pt-2">
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="invite-email">Email Address</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder="friend@example.com"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setEmailSent(false); }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  If they have an account, they'll get an in-app notification. Otherwise, share the invite link.
+                </p>
+              </div>
 
-          <TabsContent value="permanent-code" className="space-y-4">
+              <Button
+                onClick={sendEmailInvitation}
+                disabled={isLoading || !email.trim()}
+                className="w-full"
+              >
+                {isLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+                ) : emailSent ? (
+                  <><Check className="h-4 w-4 mr-2" />Sent!</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" />Send Invitation</>
+                )}
+              </Button>
+
+              {/* Show shareable link after sending */}
+              {emailSent && shareableLink && (
+                <Card className="border-green-200 bg-green-50/50">
+                  <CardContent className="pt-4 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Share this link with them directly:
+                    </p>
+                    <div className="flex gap-2">
+                      <Input value={shareableLink} readOnly className="font-mono text-xs" />
+                      <Button size="sm" variant="outline" onClick={() => shareLink(shareableLink)}>
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Shareable Link Tab */}
+          <TabsContent value="link" className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Generate a link anyone can use to join — like a WhatsApp group invite.
+            </p>
+
+            {!shareableLink ? (
+              <Button onClick={generateInvitation} disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating...</>
+                ) : (
+                  <><LinkIcon className="h-4 w-4 mr-2" />Generate Invite Link</>
+                )}
+              </Button>
+            ) : (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Invite Link</CardTitle>
+                  <CardDescription>Anyone with this link can join as {role}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input value={shareableLink} readOnly className="font-mono text-xs" />
+                    <Button size="sm" variant="outline" onClick={() => copyToClipboard(shareableLink, "Link")}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button onClick={() => shareLink(shareableLink)} className="w-full" variant="outline">
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share Link
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">Expires in 7 days</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* 6-digit Code Tab */}
+          <TabsContent value="code" className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Generate a 6-digit code that people can enter on the app.
+            </p>
+
+            {!generatedCode ? (
+              <Button onClick={generateInvitation} disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating...</>
+                ) : (
+                  <><Hash className="h-4 w-4 mr-2" />Generate Code</>
+                )}
+              </Button>
+            ) : (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Invitation Code</CardTitle>
+                  <CardDescription>Share for others to join as {role}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold font-mono tracking-wider bg-muted p-4 rounded-lg">
+                      {generatedCode}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => copyToClipboard(generatedCode, "Code")}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />Copy Code
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">Expires in 7 days</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Permanent Trip Code Tab */}
+          <TabsContent value="trip-code" className="space-y-4 pt-2">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Trip Code</CardTitle>
-                <CardDescription>
-                  Share this permanent code for others to join your trip
-                </CardDescription>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Permanent Trip Code</CardTitle>
+                <CardDescription>This code never expires — share it freely</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="text-center">
                   <div className="text-4xl font-bold font-mono tracking-wider bg-muted p-6 rounded-lg">
-                    {tripCode || "Loading..."}
+                    {tripCode || "—"}
                   </div>
                 </div>
                 <Button
@@ -283,163 +399,18 @@ export const InviteMemberDialog: React.FC<InviteMemberDialogProps> = ({
                   onClick={() => copyToClipboard(tripCode || "", "Trip Code")}
                   disabled={!tripCode}
                 >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Code
+                  <Copy className="h-4 w-4 mr-2" />Copy Code
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  This code never expires and can be used multiple times
+                  Members enter this on the Dashboard &gt; Join Trip
                 </p>
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="email" className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="friend@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <Button
-                onClick={sendEmailInvitation}
-                disabled={isLoading || !email.trim()}
-                className="w-full"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Invitation
-                  </>
-                )}
-              </Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="link" className="space-y-4">
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Generate a shareable link that anyone can use to join your trip.
-              </p>
-
-              {!shareableLink ? (
-                <Button
-                  onClick={generateInvitation}
-                  disabled={isLoading}
-                  className="w-full"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      Generate Shareable Link
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Shareable Link</CardTitle>
-                    <CardDescription>
-                      Anyone with this link can join your trip as a {role}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex gap-2">
-                      <Input
-                        value={shareableLink}
-                        readOnly
-                        className="font-mono text-xs"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => copyToClipboard(shareableLink, "Link")}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      This link expires in 7 days
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="code" className="space-y-4">
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Generate a 6-digit code that people can use to join your trip.
-              </p>
-
-              {!generatedCode ? (
-                <Button
-                  onClick={generateInvitation}
-                  disabled={isLoading}
-                  className="w-full"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Hash className="h-4 w-4 mr-2" />
-                      Generate Invitation Code
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Invitation Code</CardTitle>
-                    <CardDescription>
-                      Share this code for others to join as a {role}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold font-mono tracking-wider bg-muted p-4 rounded-lg">
-                        {generatedCode}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => copyToClipboard(generatedCode, "Code")}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy Code
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center">
-                      This code expires in 7 days
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={handleClose}>
-            Close
-          </Button>
+        <div className="flex justify-end pt-2 border-t">
+          <Button variant="outline" onClick={handleClose}>Close</Button>
         </div>
       </DialogContent>
     </Dialog>

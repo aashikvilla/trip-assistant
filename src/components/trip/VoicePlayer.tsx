@@ -1,6 +1,5 @@
 import React from 'react';
-import { Play, Pause, AlertCircle, RotateCcw } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Play, Pause, Mic } from 'lucide-react';
 import { useVoicePlayback } from '@/hooks/useVoicePlayback';
 
 interface VoicePlayerProps {
@@ -11,9 +10,9 @@ interface VoicePlayerProps {
   isOwnMessage: boolean;
 }
 
-const BARS = 40;
+const BARS = 28;
 const PLACEHOLDER_HEIGHTS = Array.from({ length: BARS }, (_, i) =>
-  0.3 + 0.4 * Math.abs(Math.sin(i * 0.7))
+  0.2 + 0.5 * Math.abs(Math.sin(i * 0.6))
 );
 
 function formatDuration(seconds: number): string {
@@ -36,70 +35,76 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
 
   const totalDuration = duration > 0 ? duration : durationSeconds;
   const progress = totalDuration > 0 ? currentTime / totalDuration : 0;
-  const bars = waveformData && waveformData.length > 0 ? waveformData : PLACEHOLDER_HEIGHTS;
-
-  const activeColor = isOwnMessage ? 'bg-white' : 'bg-blue-600';
-  const inactiveColor = isOwnMessage ? 'bg-blue-200/60' : 'bg-blue-200';
-  const timeColor = isOwnMessage ? 'text-blue-100' : 'text-gray-500';
-  const btnClass = isOwnMessage
-    ? 'text-white hover:bg-white/20'
-    : 'text-blue-600 hover:bg-blue-50';
+  const bars = waveformData && waveformData.length > 0
+    ? waveformData.length <= BARS
+      ? waveformData
+      : waveformData.filter((_, i) => i % Math.ceil(waveformData.length / BARS) === 0).slice(0, BARS)
+    : PLACEHOLDER_HEIGHTS;
 
   if (hasError) {
     return (
-      <div className="flex items-center gap-2 py-1">
-        <AlertCircle className={`h-4 w-4 ${isOwnMessage ? 'text-red-300' : 'text-red-500'}`} />
-        <span className={`text-xs ${timeColor}`}>Failed to load audio</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={`h-6 px-2 text-xs ${btnClass}`}
-          onClick={() => window.location.reload()}
-        >
-          <RotateCcw className="h-3 w-3 mr-1" />
-          Retry
-        </Button>
+      <div className="flex items-center gap-2 py-1 opacity-50">
+        <Mic className="h-4 w-4" />
+        <span className="text-xs">Voice message unavailable</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2 py-1 min-w-[180px]">
-      {/* Play/Pause button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={`h-8 w-8 rounded-full flex-shrink-0 ${btnClass}`}
+    <div className="flex items-center gap-3 min-w-[200px] max-w-[280px]">
+      {/* Play/Pause — WhatsApp-style circle */}
+      <button
         onClick={toggle}
+        className={`flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 transition-colors ${
+          isOwnMessage
+            ? 'bg-white/20 hover:bg-white/30 text-white'
+            : 'bg-blue-100 hover:bg-blue-200 text-blue-600'
+        }`}
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >
-        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-      </Button>
+        {isPlaying ? (
+          <Pause className="h-5 w-5" />
+        ) : (
+          <Play className="h-5 w-5 ml-0.5" />
+        )}
+      </button>
 
-      {/* Waveform */}
-      <div className="flex items-center gap-[2px] flex-1 h-8">
-        {bars.map((amplitude, i) => {
-          const barProgress = i / bars.length;
-          const isActive = barProgress <= progress;
-          const height = Math.max(4, Math.round(amplitude * 28));
-          return (
-            <div
-              key={i}
-              className={`rounded-full flex-1 transition-colors duration-75 ${
-                isActive ? activeColor : inactiveColor
-              }`}
-              style={{ height: `${height}px` }}
-            />
-          );
-        })}
+      {/* Waveform + duration */}
+      <div className="flex-1 flex flex-col gap-1">
+        {/* Waveform bars */}
+        <div className="flex items-end gap-[2px] h-6">
+          {bars.map((amplitude, i) => {
+            const barProgress = i / bars.length;
+            const isActive = barProgress <= progress;
+            const height = Math.max(3, Math.round(amplitude * 22));
+            return (
+              <div
+                key={i}
+                className={`rounded-full flex-1 min-w-[2px] transition-colors duration-75 ${
+                  isActive
+                    ? isOwnMessage ? 'bg-white' : 'bg-blue-600'
+                    : isOwnMessage ? 'bg-white/30' : 'bg-blue-200'
+                }`}
+                style={{ height: `${height}px` }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Duration label */}
+        <span className={`text-[10px] tabular-nums ${
+          isOwnMessage ? 'text-blue-100' : 'text-gray-400'
+        }`}>
+          {isPlaying ? formatDuration(currentTime) : formatDuration(totalDuration)}
+        </span>
       </div>
 
-      {/* Duration */}
-      <span className={`text-xs tabular-nums flex-shrink-0 ${timeColor}`}>
-        {isPlaying
-          ? formatDuration(currentTime)
-          : formatDuration(totalDuration)}
-      </span>
+      {/* Small mic icon badge — like WhatsApp */}
+      <div className={`flex items-center justify-center w-5 h-5 rounded-full flex-shrink-0 ${
+        isOwnMessage ? 'bg-white/15' : 'bg-blue-50'
+      }`}>
+        <Mic className={`h-3 w-3 ${isOwnMessage ? 'text-blue-100' : 'text-blue-400'}`} />
+      </div>
     </div>
   );
 };
