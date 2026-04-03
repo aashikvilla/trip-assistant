@@ -103,7 +103,74 @@ export const useTripChat = (tripId: string) => {
             .limit(50);
           
           if (fallbackError) throw fallbackError;
-          
+
+          // Fetch polls for any poll-type messages
+          const pollMessageIds = (fallbackData || [])
+            .filter(m => m.message_type === 'poll')
+            .map(m => m.id);
+
+          let pollsByMessageId: Record<string, any> = {};
+
+          if (pollMessageIds.length > 0) {
+            const { data: pollsData } = await supabase
+              .from('trip_polls')
+              .select(`
+                id,
+                message_id,
+                question,
+                poll_type,
+                options,
+                settings,
+                expires_at,
+                is_closed,
+                is_important,
+                created_by,
+                nudge_cooldown_until,
+                trip_poll_votes(option_index, rating, user_id)
+              `)
+              .in('message_id', pollMessageIds);
+
+            for (const poll of pollsData || []) {
+              // Fetch voter names
+              const voterIds = (poll.trip_poll_votes || []).map((v: any) => v.user_id);
+              let voterNames: Record<string, string> = {};
+              if (voterIds.length > 0) {
+                const { data: profiles } = await supabase
+                  .from('profiles')
+                  .select('id, first_name, last_name')
+                  .in('id', voterIds);
+                for (const p of profiles || []) {
+                  voterNames[p.id] = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+                }
+              }
+
+              let parsedSettings = { multiple_votes: false, anonymous: false };
+              try {
+                parsedSettings = typeof poll.settings === 'string'
+                  ? JSON.parse(poll.settings)
+                  : poll.settings || parsedSettings;
+              } catch {}
+
+              pollsByMessageId[poll.message_id] = {
+                poll_id: poll.id,
+                question: poll.question,
+                poll_type: poll.poll_type,
+                options: poll.options,
+                settings: parsedSettings,
+                expires_at: poll.expires_at,
+                is_closed: poll.is_closed,
+                is_important: poll.is_important || false,
+                creator_id: poll.created_by || null,
+                nudge_cooldown_until: poll.nudge_cooldown_until || null,
+                votes: (poll.trip_poll_votes || []).map((v: any) => ({
+                  option_index: v.option_index,
+                  rating: v.rating,
+                  user_id: v.user_id,
+                  user_name: voterNames[v.user_id] || 'Unknown',
+                })),
+              };
+            }
+          }
           return (fallbackData || []).map(message => ({
             message_id: message.id,
             content: message.content,
@@ -116,7 +183,7 @@ export const useTripChat = (tripId: string) => {
             author_name: message.author ? `${message.author.first_name} ${message.author.last_name}`.trim() : 'Anonymous',
             author_avatar: message.author?.avatar_url || null,
             reactions: [],
-            poll_data: null,
+            poll_data: pollsByMessageId[message.id] || null,
             metadata: message.metadata || null,
           }));
         }
