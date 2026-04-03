@@ -51,15 +51,18 @@ export class Orchestrator {
       this.abortController.abort();
     }, 180_000);
 
+    const runStart = Date.now();
     try {
       // 1. Load trip context
       emitLog("Orchestrator", "Loading trip context...", this.emitter);
+      const phaseStart = Date.now();
 
       const contextResult = await this.dbContextTool.execute({ tripId }, signal);
       if (!contextResult.success || !contextResult.data) {
         throw new Error(contextResult.error ?? "Failed to load trip context");
       }
       const tripContext: TripContext = contextResult.data;
+      console.info("[Orchestrator]", { phase: "context", jobId, tripId, durationMs: Date.now() - phaseStart, destinations: tripContext.trip.destinations });
 
       // 2. Research phase
       this.emitter.emit({
@@ -70,10 +73,12 @@ export class Orchestrator {
         task: `Research destinations: ${tripContext.trip.destinations.join(", ")}`,
       });
 
+      const researchStart = Date.now();
       const researchResult = await this.researchAgent.run(
         { tripContext, abortSignal: signal },
         this.emitter,
       );
+      console.info("[Orchestrator]", { phase: "research", jobId, tripId, durationMs: Date.now() - researchStart, success: researchResult.success });
 
       if (signal.aborted) return;
 
@@ -86,6 +91,7 @@ export class Orchestrator {
         task: `Plan ${tripContext.trip.tripLengthDays}-day itinerary`,
       });
 
+      const planningStart = Date.now();
       const planningResult = await this.planningAgent.run(
         {
           tripContext,
@@ -96,6 +102,7 @@ export class Orchestrator {
         },
         this.emitter,
       );
+      console.info("[Orchestrator]", { phase: "planning", jobId, tripId, durationMs: Date.now() - planningStart, success: planningResult.success });
 
       if (signal.aborted) return;
 
@@ -130,6 +137,7 @@ export class Orchestrator {
         itinerary,
       });
 
+      console.info("[Orchestrator]", { phase: "complete", jobId, tripId, totalDurationMs: Date.now() - runStart, daysGenerated: itinerary.days.length });
       clearTimeout(watchdogTimer);
     } catch (err) {
       clearTimeout(watchdogTimer);

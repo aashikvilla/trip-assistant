@@ -42,6 +42,7 @@ export class PlanningAgent implements Agent {
 
     for (const dayNum of daysToGenerate) {
       if (abortSignal.aborted) break;
+      const dayStart = Date.now();
 
       emitter.emit({
         type: "agent_thought",
@@ -83,12 +84,15 @@ export class PlanningAgent implements Agent {
 
           if (validation.success) {
             parsedDay = validation.data as ParsedItineraryDay;
+            console.info("[PlanningAgent]", { dayNum, attempt, durationMs: Date.now() - dayStart });
             break;
           } else {
             lastError = validation.error.message;
+            console.warn("[PlanningAgent]", { dayNum, attempt, validationError: lastError });
           }
         } catch (err) {
           lastError = err instanceof Error ? err.message : "Unknown error";
+          console.warn("[PlanningAgent]", { dayNum, attempt, error: lastError });
           if (attempt === MAX_RETRIES) {
             // Return a fallback day on final failure
             parsedDay = {

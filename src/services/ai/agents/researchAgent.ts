@@ -22,6 +22,7 @@ export class ResearchAgent implements Agent {
 
     for (const destination of destinations) {
       if (abortSignal.aborted) break;
+      const destStart = Date.now();
 
       const query = `${destination} travel guide attractions activities things to do tips`;
 
@@ -50,6 +51,9 @@ export class ResearchAgent implements Agent {
           ? `Found ${result.data?.results.length ?? 0} results for "${destination}"`
           : `Search failed: ${result.error ?? "unknown error"}`,
       });
+
+      const resultCount = result.data?.results.length ?? 0;
+      console.info("[ResearchAgent]", { destination, searchType: "general", durationMs: Date.now() - destStart, resultCount });
 
       researchResults.push({
         destination,
@@ -86,6 +90,8 @@ export class ResearchAgent implements Agent {
             ? `Found ${foodResult.data?.results.length ?? 0} dining results for "${destination}"`
             : `Dining search failed`,
         });
+
+        console.info("[ResearchAgent]", { destination, searchType: "dining", durationMs: Date.now() - destStart, resultCount: foodResult.data?.results.length ?? 0 });
 
         // Merge food results into the destination research
         if (foodResult.data?.results.length) {

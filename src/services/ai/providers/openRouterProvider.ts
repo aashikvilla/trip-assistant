@@ -36,6 +36,7 @@ export class OpenRouterProvider implements LLMProvider {
       body.system = systemMessages.map((m) => m.content).join("\n");
     }
 
+    const fetchStart = Date.now();
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -47,6 +48,8 @@ export class OpenRouterProvider implements LLMProvider {
       body: JSON.stringify(body),
       signal,
     });
+
+    console.info("[OpenRouterProvider]", { model: this.model, messageCount: messages.length, status: response.status, latencyMs: Date.now() - fetchStart });
 
     if (!response.ok) {
       const raw = await response.text();

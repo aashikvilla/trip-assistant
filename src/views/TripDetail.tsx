@@ -23,6 +23,7 @@ import {
   Edit,
   Sparkles,
   Loader2,
+  XCircle,
 } from "lucide-react";
 import { InviteMemberDialog } from "@/components/trip/InviteMemberDialog";
 import { TripEditDialog } from "@/components/trip/TripEditDialog";
@@ -30,9 +31,11 @@ import { TripChat } from "@/components/trip/TripChat";
 import { SimpleItineraryCalendar } from "@/components/calendar/SimpleItineraryCalendar";
 import { ItineraryItemDialog } from "@/components/itinerary/ItineraryItemDialog";
 import { ItineraryItemDetailsDialog } from "@/components/itinerary/ItineraryItemDetailsDialog";
-import { useItineraryGeneration } from "@/hooks/useItineraryGeneration";
+import { useItineraryStream } from "@/hooks/useItineraryStream";
 import { useItineraryStatus } from "@/hooks/useItineraryStatus";
 import { ItineraryStatusNotification } from "@/components/itinerary/ItineraryStatusNotification";
+import { StreamingThinkingPanel } from "@/components/itinerary/StreamingThinkingPanel";
+import { PartialDayCard } from "@/components/itinerary/PartialDayCard";
 import { ExpensesTab } from "@/components/trip/detail/Expenses/ExpensesTab";
 import { BookingsTab } from "@/components/trip/detail/Bookings/BookingsTab";
 import type { Tables } from "@/integrations/supabase/types";
@@ -158,7 +161,8 @@ const TripDetail = () => {
   const [activeTab, setActiveTab] = useState<TabId>("itinerary");
   const [isStandalone, setIsStandalone] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { generateItinerary, isGenerating } = useItineraryGeneration();
+  const { events, status: streamStatus, itinerary: streamingItinerary, error: streamError, startStream, cancel } = useItineraryStream();
+  const isGenerating = streamStatus === "streaming";
   const { data: itineraryStatus } = useItineraryStatus(id || "");
   const { isOffline } = useConnectivity();
   const { get: getOfflineTrip } = useOfflineStore();
@@ -184,6 +188,14 @@ const TripDetail = () => {
       queryClient.invalidateQueries({ queryKey: ['trip', id] });
     }
   }, [itineraryStatus?.job_status, queryClient, id]);
+
+  // Invalidate queries when stream completes so calendar reloads
+  React.useEffect(() => {
+    if (streamStatus === "complete") {
+      queryClient.invalidateQueries({ queryKey: ["trip", id] });
+      queryClient.invalidateQueries({ queryKey: ["itinerary-status", id] });
+    }
+  }, [streamStatus, queryClient, id]);
   const [showItemDialog, setShowItemDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedItem, setSelectedItem] =
@@ -579,7 +591,7 @@ const TripDetail = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => generateItinerary(trip.id)}
+                      onClick={() => startStream(trip.id)}
                       disabled={isGenerating}
                     >
                       {isGenerating ? (
@@ -604,10 +616,68 @@ const TripDetail = () => {
               </div>
             </div>
             <OfflineStorageInfo tripId={trip.id} />
-            {/* AI Guidance / Generation Panel */}
-            {(!trip.ai_itinerary_data ||
+            {/* AI Streaming / Generation Panel */}
+            {(isGenerating || streamStatus === "complete") && (() => {
+              const totalDays = trip.start_date && trip.end_date
+                ? Math.max(1, Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000) + 1)
+                : 7;
+              let progress = 0;
+              let daysReceived = 0;
+              for (const ev of events) {
+                if (ev.type === "agent_start" && progress < 5) progress = 5;
+                else if (ev.type === "agent_handoff" && ev.toAgent === "ResearchAgent") progress = Math.max(progress, 10);
+                else if (ev.type === "agent_handoff" && ev.toAgent === "PlanningAgent") progress = Math.max(progress, 20);
+                else if (ev.type === "partial_itinerary") { daysReceived++; progress = Math.max(progress, 20 + (daysReceived / totalDays) * 70); }
+                else if (ev.type === "itinerary_complete") progress = 100;
+              }
+              return (
+                <div className="space-y-4">
+                  {/* Progress bar */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Crafting your personalized itinerary...
+                      </div>
+                      <span className="text-xs text-muted-foreground">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        {daysReceived > 0 ? `${daysReceived} of ${totalDays} days planned` : "Researching your destination..."}
+                      </p>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-muted-foreground" onClick={cancel}>
+                        <XCircle className="h-3 w-3 mr-1" /> Cancel
+                      </Button>
+                    </div>
+                  </div>
+                  {/* AI thinking panel */}
+                  <StreamingThinkingPanel events={events} isComplete={streamStatus === "complete"} />
+                  {/* Partial day cards as they arrive */}
+                  {streamingItinerary && streamingItinerary.days.length > 0 && (
+                    <div className="space-y-3">
+                      {streamingItinerary.days.map((day, i) => (
+                        <PartialDayCard
+                          key={day.day}
+                          day={day}
+                          isStreaming={isGenerating && i === streamingItinerary.days.length - 1}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            {/* AI Guidance Panel — show when idle/failed and no itinerary */}
+            {!isGenerating && streamStatus !== "complete" && (!trip.ai_itinerary_data ||
               trip.itinerary_status === "generating" ||
-              trip.itinerary_status === "failed") && (
+              trip.itinerary_status === "failed" ||
+              streamStatus === "error") && (
               <Card>
                 <CardHeader className="pb-2 text-center">
                   <CardTitle className="flex items-center justify-center gap-2 text-lg font-semibold">
@@ -616,55 +686,31 @@ const TripDetail = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm text-muted-foreground text-center">
-                  {trip.itinerary_status === "generating" ? (
-                    <div className="space-y-3 flex flex-col items-center">
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Crafting your personalized itinerary...
-                      </div>
-                      <p>
-                        This usually takes a couple of minutes. Feel free to
-                        explore other tabs— we’ll update this view as soon as
-                        it’s ready.
-                      </p>
-                      <div className="h-1 w-48 bg-muted rounded overflow-hidden">
-                        <div className="h-1 w-1/2 bg-primary rounded animate-pulse" />
-                      </div>
-                      <p className="text-xs">
-                        You can come back anytime; your plan will be waiting
-                        here.
-                      </p>
-                    </div>
-                  ) : trip.itinerary_status === "failed" ? (
+                  {trip.itinerary_status === "failed" || streamStatus === "error" ? (
                     <div className="space-y-4">
                       <p className="text-foreground">
                         We couldn’t generate your plan just now.
                       </p>
+                      {streamError && (
+                        <p className="text-xs text-destructive bg-destructive/10 rounded p-2">
+                          {streamError}
+                        </p>
+                      )}
                       <div className="inline-block text-left">
                         <ul className="list-disc pl-5 space-y-1">
-                          <li>Double‑check your dates and destination.</li>
-                          <li>
-                            Invite your travel buddies so we factor group
-                            preferences.
-                          </li>
-                          <li>
-                            Set your travel preferences for the best
-                            recommendations.
-                          </li>
+                          <li>Double-check your dates and destination.</li>
+                          <li>Invite your travel buddies so we factor group preferences.</li>
+                          <li>Set your travel preferences for the best recommendations.</li>
                         </ul>
                       </div>
                       <div className="flex justify-center gap-2 pt-1">
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => generateItinerary(trip.id)}
+                          onClick={() => startStream(trip.id)}
                           disabled={isGenerating}
                         >
-                          {isGenerating ? (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4 mr-2" />
-                          )}
+                          <Sparkles className="h-4 w-4 mr-2" />
                           Retry AI Generation
                         </Button>
                         <Button
@@ -679,14 +725,14 @@ const TripDetail = () => {
                   ) : (
                     <div className="space-y-5">
                       <p className="text-foreground max-w-md mx-auto">
-                        Ready to create some memories in {trip.destination_main}? I can whip up a personalized itinerary in just a few moments. For the best results, let's get a few details sorted first.
+                        Ready to create some memories in {trip.destination_main}? I can whip up a personalized itinerary in just a few moments. For the best results, let’s get a few details sorted first.
                       </p>
                       <div className="inline-block text-left bg-muted p-4 rounded-lg border">
                         <ul className="space-y-3">
                           <li className="flex items-start gap-3">
                             <Users className="h-4 w-4 mt-1 shrink-0 text-primary" />
                             <div>
-                              <strong>Add your travel buddies.</strong> The more I know about who's going, the better I can tailor activities for everyone.
+                              <strong>Add your travel buddies.</strong> The more I know about who’s going, the better I can tailor activities for everyone.
                               <br /><span className="text-xs text-primary">Pro-tip: Ask them to fill in their profile preferences for an even more memorable trip!</span>
                             </div>
                           </li>
@@ -699,8 +745,8 @@ const TripDetail = () => {
                         </ul>
                       </div>
                       <div className="flex flex-wrap justify-center gap-2 pt-2">
-                        <Button size="sm" onClick={() => generateItinerary(trip.id)} disabled={isGenerating}>
-                          {isGenerating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}Generate AI Itinerary
+                        <Button size="sm" onClick={() => startStream(trip.id)} disabled={isGenerating}>
+                          <Sparkles className="h-4 w-4 mr-2" />Generate AI Itinerary
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => setShowInviteDialog(true)}>
                           <Users className="h-4 w-4 mr-2" /> Add People

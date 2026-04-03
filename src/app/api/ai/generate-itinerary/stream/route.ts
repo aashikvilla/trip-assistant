@@ -114,6 +114,13 @@ export async function GET(request: Request) {
         },
       };
 
+      // Send job ID as the first event so the client can cancel
+      emitter.emit({
+        type: "job_created",
+        timestamp: new Date().toISOString(),
+        jobId: job.id,
+      });
+
       const provider = createLLMProvider();
       const orchestrator = new Orchestrator(provider, emitter, abortController);
 

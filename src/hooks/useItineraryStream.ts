@@ -25,6 +25,12 @@ export function useItineraryStream(): UseItineraryStreamReturn {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const currentTripIdRef = useRef<string | null>(null);
+  const statusRef = useRef<StreamStatus>("idle");
+  const jobIdRef = useRef<string | null>(null);
+
+  // Keep refs in sync
+  useEffect(() => { statusRef.current = status; }, [status]);
+  useEffect(() => { jobIdRef.current = jobId; }, [jobId]);
 
   const cancel = useCallback(() => {
     eventSourceRef.current?.close();
@@ -32,11 +38,12 @@ export function useItineraryStream(): UseItineraryStreamReturn {
     setStatus("idle");
 
     // Patch job status to cancelled if we have a jobId
-    if (jobId) {
+    const currentJobId = jobIdRef.current;
+    if (currentJobId) {
       supabase
         .from("itinerary_generation_jobs")
         .update({ status: "cancelled", completed_at: new Date().toISOString() })
-        .eq("id", jobId)
+        .eq("id", currentJobId)
         .then(() => {});
 
       // Reset trip status
@@ -48,7 +55,7 @@ export function useItineraryStream(): UseItineraryStreamReturn {
           .then(() => {});
       }
     }
-  }, [jobId]);
+  }, []);
 
   const startStream = useCallback((tripId: string) => {
     // Close any existing stream
@@ -74,7 +81,9 @@ export function useItineraryStream(): UseItineraryStreamReturn {
 
         setEvents((prev) => [...prev, event]);
 
-        if (event.type === "partial_itinerary") {
+        if (event.type === "job_created") {
+          setJobId(event.jobId);
+        } else if (event.type === "partial_itinerary") {
           accumulatedDays.push(event.day);
           setItinerary({ days: [...accumulatedDays] });
         } else if (event.type === "itinerary_complete") {
@@ -97,14 +106,15 @@ export function useItineraryStream(): UseItineraryStreamReturn {
 
     es.onerror = () => {
       if (es.readyState === EventSource.CLOSED) {
-        if (status !== "complete") {
+        // Use ref to avoid stale closure
+        if (statusRef.current !== "complete") {
           setStatus("error");
           setError("Connection lost");
         }
         eventSourceRef.current = null;
       }
     };
-  }, [status]);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {

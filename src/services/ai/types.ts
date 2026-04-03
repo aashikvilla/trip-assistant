@@ -6,6 +6,7 @@ export type { ParsedItinerary, ParsedItineraryDay };
 // ── Stream Events ────────────────────────────────────────────────────────────
 
 export type StreamEvent =
+  | { type: "job_created"; timestamp: string; jobId: string }
   | { type: "agent_start"; timestamp: string; agentName: string }
   | { type: "agent_thought"; timestamp: string; agentName: string; thought: string }
   | { type: "tool_call"; timestamp: string; toolName: string; input: unknown }
