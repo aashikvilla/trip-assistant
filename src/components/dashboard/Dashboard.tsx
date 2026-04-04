@@ -22,20 +22,19 @@ const Dashboard = () => {
   return (
     <div>
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Trips</h1>
-            <p className="text-muted-foreground">Plan and manage your adventures</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Trips</h1>
+            <p className="text-sm text-muted-foreground">Plan and manage your adventures</p>
           </div>
-          
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowJoinTrip(true)} className="gap-2">
+            <Button variant="outline" onClick={() => setShowJoinTrip(true)} className="h-9 w-9 p-0 md:w-auto md:px-4 md:gap-2" title="Join Trip">
               <Users className="h-4 w-4" />
-              Join Trip
+              <span className="hidden md:inline">Join Trip</span>
             </Button>
-            <Button onClick={() => setShowCreateTrip(true)} className="gap-2">
+            <Button onClick={() => setShowCreateTrip(true)} className="h-9 w-9 p-0 md:w-auto md:px-4 md:gap-2" title="New Trip">
               <Plus className="h-4 w-4" />
-              New Trip
+              <span className="hidden md:inline">New Trip</span>
             </Button>
           </div>
         </div>

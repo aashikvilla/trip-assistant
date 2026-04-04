@@ -183,22 +183,19 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
   return (
     <VoicePlaybackProvider>
       <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-        {/* Chat Header */}
-        <div className="flex flex-row items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-lg">
-          <h3 className="flex items-center gap-3 text-xl font-bold text-white">
-            <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
-              <MessageCircle className="h-6 w-6 text-white flex-shrink-0" />
+        {/* Chat Header — compact on mobile, full on desktop */}
+        <div className="flex flex-row items-center justify-between px-3 py-2 md:px-6 md:py-4 bg-blue-700 md:bg-gradient-to-r md:from-blue-600 md:via-blue-700 md:to-indigo-700 shadow-md md:shadow-lg">
+          <h3 className="flex items-center gap-2 md:gap-3 text-base md:text-xl font-bold text-white">
+            <div className="p-1.5 md:p-2.5 bg-white/20 backdrop-blur-sm rounded-lg md:rounded-xl border border-white/30">
+              <MessageCircle className="h-4 w-4 md:h-6 md:w-6 text-white flex-shrink-0" />
             </div>
-            <span className="sm:inline">
-              <span className="sm:hidden">Chat</span>
-              <span className="hidden sm:inline">Trip Chat</span>
-            </span>
+            <span className="hidden md:inline">Trip Chat</span>
+            <span className="md:hidden">Chat</span>
           </h3>
-          <div className="flex gap-3 items-center">
-            {/* Notification badge */}
+          <div className="flex gap-2 md:gap-3 items-center">
             {unreadCount > 0 && (
               <div className="relative">
-                <Bell className="h-5 w-5 text-white" />
+                <Bell className="h-4 w-4 md:h-5 md:w-5 text-white" />
                 <Badge className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-red-500 text-white border-0">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </Badge>
@@ -208,11 +205,11 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
               variant="ghost"
               size="sm"
               onClick={() => setShowPollDialog(true)}
-              className="flex items-center justify-center w-11 h-11 p-0 text-white hover:bg-white/20 hover:backdrop-blur-sm rounded-xl border border-white/20 sm:w-auto sm:px-4 sm:h-auto transition-all duration-200"
+              className="h-9 w-9 p-0 md:w-auto md:px-4 md:h-auto text-white hover:bg-white/20 rounded-lg md:rounded-xl border border-white/20 transition-all duration-200"
               title="Create Poll"
             >
-              <BarChart3 className="h-5 w-5" />
-              <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm font-medium">Poll</span>
+              <BarChart3 className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden md:inline md:ml-2 md:text-sm font-medium">Poll</span>
             </Button>
           </div>
         </div>
@@ -312,41 +309,40 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
             );
           })()}
 
-          {/* Message Input */}
-          <div className="sticky bottom-0 bg-gradient-to-r from-white via-blue-50/50 to-white border-t border-gray-200 p-4 shadow-lg backdrop-blur-sm z-10">
+          {/* Message Input — compact on mobile */}
+          <div className="sticky bottom-0 bg-white border-t border-gray-200 px-2 py-2 md:px-4 md:py-4 shadow-lg backdrop-blur-sm z-10">
             {isOffline && (
               <div className="flex items-center gap-2 text-xs text-amber-600 mb-2">
                 <WifiOff className="h-3 w-3" />
-                <span>Messages will be queued and sent when online</span>
+                <span className="hidden md:inline">Messages will be queued and sent when online</span>
+                <span className="md:hidden">Offline — messages queued</span>
               </div>
             )}
-            <form onSubmit={handleSendMessage} className="flex items-center gap-3 w-full">
-              {/* Voice recorder button */}
+            <form onSubmit={handleSendMessage} className="flex items-center gap-2 w-full">
               <VoiceRecorderButton
                 tripId={tripId}
                 replyToId={replyToMessage}
                 onSent={() => setReplyToMessage(null)}
               />
-
               <Input
                 ref={inputRef}
                 value={message}
                 onChange={handleInputChange}
-                placeholder="Share your thoughts about this trip..."
-                className="flex-1 rounded-2xl border-2 border-gray-200 px-5 py-3 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white/80 backdrop-blur-sm shadow-sm transition-all duration-200"
+                placeholder="Message..."
+                className="flex-1 rounded-full border-2 border-gray-200 px-4 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 bg-white shadow-sm transition-all duration-200"
                 disabled={isSendingMessage}
                 maxLength={1000}
               />
               <Button
                 type="submit"
                 size="icon"
-                className="h-12 w-12 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0 shadow-md transition-all duration-200"
                 disabled={!message.trim() || isSendingMessage}
               >
                 {isSendingMessage ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Send className="h-5 w-5" />
+                  <Send className="h-4 w-4" />
                 )}
               </Button>
             </form>
