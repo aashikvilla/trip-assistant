@@ -27,23 +27,35 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ activeTab, onTabChange }: MobileBottomNavProps) {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800 safe-area-inset-bottom">
-      <div className="flex items-stretch h-16">
-        {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => onTabChange(id)}
-            className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 min-w-0 transition-colors",
-              activeTab === id ? "text-indigo-400" : "text-gray-500 hover:text-gray-300"
-            )}
-            aria-label={label}
-            aria-current={activeTab === id ? "page" : undefined}
-          >
-            <Icon className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] leading-none font-medium truncate">{label}</span>
-          </button>
-        ))}
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-gray-900/97 backdrop-blur-md border-t border-gray-800 safe-area-inset-bottom">
+      <div className="flex items-stretch h-[60px]">
+        {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+          const isActive = activeTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => onTabChange(id)}
+              className={cn(
+                "relative flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 transition-colors min-h-[44px]",
+                isActive ? "text-indigo-400" : "text-gray-500 active:text-gray-300"
+              )}
+              aria-label={label}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {/* Active indicator dot */}
+              {isActive && (
+                <span className="absolute top-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-400" />
+              )}
+              <Icon className={cn("h-5 w-5 shrink-0 transition-transform", isActive && "scale-110")} />
+              <span className={cn(
+                "text-[11px] leading-none font-medium truncate transition-colors",
+                isActive ? "text-indigo-400" : "text-gray-500"
+              )}>
+                {label}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );

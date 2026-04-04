@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPin, Calendar, Users, ArrowRight, Plus } from 'lucide-react';
+import { MapPin, Calendar, Users, ArrowRight, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from "next/link";
 
@@ -62,60 +62,66 @@ export const TripsList = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
       {trips.map((trip) => (
-        <Card key={trip.id} className="group hover:shadow-lg transition-shadow duration-200">
-          {trip.cover_image_url && (
-            <div className="h-48 bg-cover bg-center rounded-t-lg" 
-                 style={{ backgroundImage: `url(${trip.cover_image_url})` }}>
-            </div>
-          )}
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <CardTitle className="line-clamp-1">{trip.name}</CardTitle>
-                <CardDescription className="flex items-center gap-1 mt-1">
-                  <MapPin className="h-3 w-3" />
-                  {trip.destination_main || 'Multiple destinations'}
-                </CardDescription>
+        /* Entire card is tappable on mobile */
+        <Link key={trip.id} href={`/trips/${trip.id}`} className="block group">
+          <Card className="hover:shadow-lg transition-shadow duration-200 active:scale-[0.99] transition-transform">
+            {trip.cover_image_url && (
+              <div className="h-36 md:h-48 bg-cover bg-center rounded-t-lg"
+                   style={{ backgroundImage: `url(${trip.cover_image_url})` }}>
               </div>
-              <Badge variant="outline" className="ml-2">
-                {trip.trip_members[0]?.role}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {trip.start_date && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  {format(new Date(trip.start_date), 'MMM d, yyyy')}
-                  {trip.end_date && ` - ${format(new Date(trip.end_date), 'MMM d, yyyy')}`}
+            )}
+            <CardHeader className="pb-2 md:pb-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="line-clamp-1 text-base md:text-lg">{trip.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-1 mt-1 text-xs md:text-sm">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    {trip.destination_main || 'Multiple destinations'}
+                  </CardDescription>
                 </div>
-              )}
-              
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Users className="h-4 w-4" />
-                {trip.trip_members.length} member{trip.trip_members.length !== 1 ? 's' : ''}
+                <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                  <Badge variant="outline" className="text-xs">
+                    {trip.trip_members[0]?.role}
+                  </Badge>
+                  {/* Chevron on mobile to indicate tappable */}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground md:hidden" />
+                </div>
               </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2 md:space-y-3">
+                {trip.start_date && (
+                  <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                    <Calendar className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+                    {format(new Date(trip.start_date), 'MMM d, yyyy')}
+                    {trip.end_date && ` - ${format(new Date(trip.end_date), 'MMM d, yyyy')}`}
+                  </div>
+                )}
 
-              {trip.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {trip.description}
-                </p>
-              )}
-              
-              <div className="pt-2">
-                <Button asChild variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <Link href={`/trips/${trip.id}`}>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Users className="h-3 w-3 md:h-4 md:w-4 flex-shrink-0" />
+                  {trip.trip_members.length} member{trip.trip_members.length !== 1 ? 's' : ''}
+                </div>
+
+                {trip.description && (
+                  <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
+                    {trip.description}
+                  </p>
+                )}
+
+                {/* View Trip button — desktop only; full card is tappable on mobile */}
+                <div className="hidden md:block pt-2">
+                  <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors pointer-events-none">
                     View Trip
                     <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
-                </Button>
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
       ))}
     </div>
   );

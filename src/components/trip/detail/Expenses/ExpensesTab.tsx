@@ -64,26 +64,29 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({ tripId }) => {
         title="Expenses"
         description="Track trip expenses and split costs with your group"
         action={
-          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+          <div className="flex gap-2 items-center">
             {isCalculating && (
-              <span className="text-xs text-muted-foreground sm:mr-2">Updating balances...</span>
+              <span className="hidden sm:inline text-xs text-muted-foreground mr-1">Updating balances...</span>
             )}
+            {/* Icon-only on mobile, labeled on desktop */}
             <Button
               size="sm"
               variant="outline"
-              className="w-full sm:w-auto"
+              className="h-9 w-9 p-0 md:w-auto md:px-3"
               onClick={() => setShowPaymentDialog(true)}
+              title="Record Payment"
             >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Record Payment
+              <CreditCard className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden md:inline md:ml-2">Record Payment</span>
             </Button>
             <Button
               size="sm"
-              className="w-full sm:w-auto"
+              className="h-9 w-9 p-0 md:w-auto md:px-3"
               onClick={() => setShowExpenseDialog(true)}
+              title="Add Expense"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Expense
+              <Plus className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden md:inline md:ml-2">Add Expense</span>
             </Button>
           </div>
         }

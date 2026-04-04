@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Plus, MapPin, Calendar, Users, Settings, LogOut } from 'lucide-react';
+import { Plus, MapPin, Calendar, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { TripsList } from './TripsList';
 import { CreateTripDialog } from './CreateTripDialog';
@@ -14,56 +14,27 @@ import Link from "next/link";
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 
 const Dashboard = () => {
-  const { signOut, user, showPreferences, handlePreferencesComplete } = useAuth();
+  const { user, showPreferences, handlePreferencesComplete } = useAuth();
   const [showCreateTrip, setShowCreateTrip] = useState(false);
   const [showJoinTrip, setShowJoinTrip] = useState(false);
   const { data: stats } = useDashboardStats(user?.id);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
-                <MapPin className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold">Vibe Trip</span>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/settings">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
+    <div>
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Trips</h1>
-            <p className="text-muted-foreground">Plan and manage your adventures</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Trips</h1>
+            <p className="text-sm text-muted-foreground">Plan and manage your adventures</p>
           </div>
-          
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowJoinTrip(true)} className="gap-2">
+            <Button variant="outline" onClick={() => setShowJoinTrip(true)} className="h-9 w-9 p-0 md:w-auto md:px-4 md:gap-2" title="Join Trip">
               <Users className="h-4 w-4" />
-              Join Trip
+              <span className="hidden md:inline">Join Trip</span>
             </Button>
-            <Button onClick={() => setShowCreateTrip(true)} className="gap-2">
+            <Button onClick={() => setShowCreateTrip(true)} className="h-9 w-9 p-0 md:w-auto md:px-4 md:gap-2" title="New Trip">
               <Plus className="h-4 w-4" />
-              New Trip
+              <span className="hidden md:inline">New Trip</span>
             </Button>
           </div>
         </div>
