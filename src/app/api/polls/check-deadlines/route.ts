@@ -6,13 +6,32 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: NextRequest) {
-  // Protect with CRON_SECRET
+function isAuthorized(req: NextRequest): boolean {
+  // Vercel Cron: Authorization: Bearer <CRON_SECRET>
+  const authHeader = req.headers.get('authorization');
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) return true;
+  // External schedulers: X-Cron-Secret header
   const secret = req.headers.get('x-cron-secret');
-  if (!secret || secret !== process.env.CRON_SECRET) {
+  if (secret && secret === process.env.CRON_SECRET) return true;
+  return false;
+}
+
+// GET — called by Vercel Cron Jobs
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  return runDeadlineCheck();
+}
 
+export async function POST(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return runDeadlineCheck();
+}
+
+async function runDeadlineCheck() {
   const now = new Date();
   const in24h = new Date(now.getTime() + 24 * 3600 * 1000).toISOString();
   const nowIso = now.toISOString();
