@@ -42,7 +42,9 @@ export const TripEditDialog: React.FC<TripEditDialogProps> = ({ open, onOpenChan
   const [currentDestination, setCurrentDestination] = React.useState('');
   const [travelStyle, setTravelStyle] = React.useState<string>(trip?.travel_style || '');
   const [vibe, setVibe] = React.useState<string>(trip?.vibe || '');
-  const [activityLevel, setActivityLevel] = React.useState<string>(trip?.activity_level || '');
+  // DB stores 'light'/'moderate'/'active'; dropdown uses 'low'/'moderate'/'high'
+  const dbToUiActivity = (v?: string | null) => v === 'light' ? 'low' : v === 'active' ? 'high' : v || '';
+  const [activityLevel, setActivityLevel] = React.useState<string>(dbToUiActivity(trip?.activity_level));
   const [mustDoActivities, setMustDoActivities] = React.useState<string[]>(Array.isArray(trip?.must_do_activities) ? trip.must_do_activities : []);
   const [mustDoInput, setMustDoInput] = React.useState<string>('');
   const [name, setName] = React.useState<string>(trip?.name || '');
@@ -89,7 +91,7 @@ export const TripEditDialog: React.FC<TripEditDialogProps> = ({ open, onOpenChan
       setDestinations(trip.destination_main ? String(trip.destination_main).split(',').map((d: string) => d.trim()).filter(Boolean) : []);
       setTravelStyle(trip.travel_style || '');
       setVibe(trip.vibe || '');
-      setActivityLevel(trip.activity_level || '');
+      setActivityLevel(dbToUiActivity(trip.activity_level));
       setMustDoActivities(Array.isArray(trip.must_do_activities) ? trip.must_do_activities : []);
       setMustDoInput('');
       setName(trip.name || '');
@@ -146,14 +148,19 @@ export const TripEditDialog: React.FC<TripEditDialogProps> = ({ open, onOpenChan
 
     setIsLoading(true);
     try {
+      // Map UI activity level values to DB CHECK constraint values
+      const activityLevelMap: Record<string, string> = { low: 'light', moderate: 'moderate', high: 'active' };
+      const mappedActivityLevel = activityLevel ? (activityLevelMap[activityLevel] ?? activityLevel) : null;
+
       const updateData: Record<string, unknown> = {
         name: name.trim(),
         description: description?.trim() || null,
         destination_main: destinations.length > 0 ? destinations.join(', ') : null,
         travel_style: travelStyle || null,
         vibe: vibe || null,
-        activity_level: activityLevel || null,
-        must_do_activities: mustDoActivities.length > 0 ? mustDoActivities : null,
+        activity_level: mappedActivityLevel,
+        // must_do_activities is NOT NULL — send [] instead of null
+        must_do_activities: mustDoActivities.length > 0 ? mustDoActivities : [],
         start_date: startDate ? startDate.toISOString().split('T')[0] : null,
         end_date: endDate ? endDate.toISOString().split('T')[0] : null,
       };
@@ -269,10 +276,28 @@ export const TripEditDialog: React.FC<TripEditDialogProps> = ({ open, onOpenChan
           {/* Trip Vibe */}
           <div className="space-y-2">
             <Label htmlFor="vibe">Trip Vibe</Label>
-            <Input id="vibe" value={vibe} onChange={(e) => setVibe(e.target.value)} />
+            <Select value={vibe} onValueChange={setVibe}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a vibe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="adventure">Adventure</SelectItem>
+                <SelectItem value="adventurous">Adventurous</SelectItem>
+                <SelectItem value="relaxed">Relaxed</SelectItem>
+                <SelectItem value="cultural">Cultural</SelectItem>
+                <SelectItem value="romantic">Romantic</SelectItem>
+                <SelectItem value="foodie">Foodie</SelectItem>
+                <SelectItem value="nature">Nature</SelectItem>
+                <SelectItem value="nightlife">Nightlife</SelectItem>
+                <SelectItem value="family_friendly">Family Friendly</SelectItem>
+                <SelectItem value="luxury">Luxury</SelectItem>
+                <SelectItem value="budget">Budget</SelectItem>
+                <SelectItem value="party">Party</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Activity Level - align with CreateTripDialog */}
+          {/* Activity Level */}
           <div className="space-y-2">
             <Label htmlFor="activity-level">Activity Level <span className="text-red-500">*</span></Label>
             <Select value={activityLevel} onValueChange={(v) => setActivityLevel(v)}>
@@ -280,9 +305,9 @@ export const TripEditDialog: React.FC<TripEditDialogProps> = ({ open, onOpenChan
                 <SelectValue placeholder="Select activity level" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="low">Low - Relaxed pace, minimal physical activity</SelectItem>
-                <SelectItem value="moderate">Moderate - Balanced mix of activities and rest</SelectItem>
-                <SelectItem value="high">High - Action-packed, lots of physical activities</SelectItem>
+                <SelectItem value="low">Low — Relaxed pace, minimal physical activity</SelectItem>
+                <SelectItem value="moderate">Moderate — Balanced mix of activities and rest</SelectItem>
+                <SelectItem value="high">High — Action-packed, lots of physical activities</SelectItem>
               </SelectContent>
             </Select>
           </div>

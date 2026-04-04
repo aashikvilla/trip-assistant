@@ -65,7 +65,7 @@ export const PreferencesEditor = () => {
   const [loyaltyPrograms, setLoyaltyPrograms] = useState({
     airlines: '',
     hotels: '',
-    cars: ''
+    creditCards: ''
   });
 
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -123,7 +123,7 @@ export const PreferencesEditor = () => {
         setLoyaltyPrograms({
           airlines: loyaltyData.airlines?.[0] || '',
           hotels: loyaltyData.hotels?.[0] || '',
-          cars: loyaltyData.creditCards?.[0] || ''
+          creditCards: loyaltyData.creditCards?.[0] || ''
         });
       }
     }
@@ -158,7 +158,6 @@ export const PreferencesEditor = () => {
         creditCards: loyaltyPrograms.creditCards ? [loyaltyPrograms.creditCards] : []
       };
 
-      // Update profiles table with preferences in JSONB format
       const preferencesData = {
         interests: selectedInterests,
         dietary: selectedDietary,
@@ -168,11 +167,11 @@ export const PreferencesEditor = () => {
 
       const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
+        .update({
           preferences: preferencesData,
-          updated_at: new Date().toISOString()
-        });
+          preferences_completed: true,
+        })
+        .eq('id', user.id);
 
       if (profileError) {
         throw profileError;
