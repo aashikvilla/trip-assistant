@@ -14,7 +14,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "itinerary", label: "Itinerary", icon: Calendar },
   { id: "chat", label: "Chat", icon: MessageCircle },
-  { id: "polls", label: "Polls", icon: Vote },
   { id: "expenses", label: "Expenses", icon: DollarSign },
   { id: "bookings", label: "Bookings", icon: Bookmark },
   { id: "members", label: "Members", icon: Users },

@@ -220,7 +220,11 @@ export class DBContextTool implements Tool<DBContextInput, TripContext> {
         vibe: trip.vibe ?? "Relaxed",
         budget,
         activityLevel,
-        mustDoActivities: safeStringArray(trip.must_do_activities),
+        // Read from both columns (must_do = text[], must_do_activities = jsonb) and deduplicate
+        mustDoActivities: [...new Set([
+          ...safeStringArray((trip as unknown as Record<string, unknown>).must_do),
+          ...safeStringArray(trip.must_do_activities),
+        ])].filter(Boolean),
         description: trip.description ?? `A ${tripLengthDays}-day trip.`,
       },
       members: processedMembers,

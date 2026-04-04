@@ -62,11 +62,11 @@ export const BookingsTab: React.FC<BookingsTabProps> = ({ tripId }) => {
           <Button
             size="sm"
             onClick={() => setShowDialog(true)}
-            className="h-9 w-9 p-0 md:w-auto md:px-3"
+            className="h-9 w-9 p-0 md:w-auto md:px-4"
             title="Add Booking"
           >
             <Plus className="h-4 w-4 flex-shrink-0" />
-            <span className="hidden md:inline md:ml-2">Add Booking</span>
+            <span className="hidden md:inline md:ml-2 md:block md:px-2">Add Booking</span>
           </Button>
         </div>
         

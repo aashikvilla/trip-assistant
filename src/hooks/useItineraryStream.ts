@@ -105,20 +105,54 @@ export function useItineraryStream(): UseItineraryStreamReturn {
     };
 
     es.onerror = () => {
-      // When server closes the stream, EventSource tries to reconnect
-      // (readyState = CONNECTING). We must close it to prevent infinite reconnects.
       const currentStatus = statusRef.current;
       if (currentStatus === "complete" || currentStatus === "error") {
-        // Already handled via onmessage — just clean up
         es.close();
         eventSourceRef.current = null;
         return;
       }
-      // Server dropped connection unexpectedly
+
+      // SSE connection dropped (proxy timeout, Vercel 60s Hobby limit, network hiccup).
+      // If we have a jobId, switch to DB polling every 8s until the job completes.
+      // Generation can take 4–6 min — we must not give up just because the stream closed.
       es.close();
       eventSourceRef.current = null;
-      setStatus("error");
-      setError("Connection lost");
+
+      const currentJobId = jobIdRef.current;
+      if (!currentJobId) {
+        setStatus("error");
+        setError("Connection lost — no job ID to poll");
+        return;
+      }
+
+      // Stay in "streaming" state while polling so the UI keeps showing progress
+      const poll = async () => {
+        try {
+          const { data } = await supabase
+            .from("itinerary_generation_jobs")
+            .select("status, error_message")
+            .eq("id", currentJobId)
+            .single();
+
+          if (!data) return; // transient fetch error, keep polling
+
+          if (data.status === "completed") {
+            setStatus("complete");
+            // Invalidation will be handled by the status notification hook
+          } else if (data.status === "failed") {
+            setStatus("error");
+            setError(data.error_message ?? "Generation failed");
+          } else {
+            // Still running — poll again in 8s
+            setTimeout(poll, 8_000);
+          }
+        } catch {
+          // Network error — retry
+          setTimeout(poll, 8_000);
+        }
+      };
+
+      setTimeout(poll, 5_000);
     };
   }, []);
 

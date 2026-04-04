@@ -44,21 +44,37 @@ export class OpenRouterProvider implements LLMProvider {
       const usedFallback = modelIdx > 0;
 
       try {
-        // Try this model with retries
+        // Try this model with system messages as-is
         yield* await this.streamFromModel(model, messages, usedFallback, signal);
         return; // Success!
       } catch (err) {
         if (err instanceof LLMProviderError) {
           lastError = err;
+
+          // If 400 "Developer instruction is not enabled" — model doesn't support system role.
+          // Retry once with system messages merged into first user message.
+          if (err.statusCode === 400 && err.message.includes("Developer instruction is not enabled")) {
+            console.warn(`[OpenRouterProvider] Model ${model} doesn't support system messages, retrying with merged format`);
+            try {
+              yield* await this.streamFromModel(model, this.mergeSystemIntoUser(messages), usedFallback, signal);
+              return;
+            } catch (innerErr) {
+              if (innerErr instanceof LLMProviderError) lastError = innerErr;
+            }
+          }
+
           // If 429 and not last model, try next
-          if (err.statusCode === 429 && !isLastModel) {
+          if ((err.statusCode === 429 || lastError?.statusCode === 429) && !isLastModel) {
             console.warn(
               `[OpenRouterProvider] Model ${model} rate limited (429), trying fallback model ${this.models[modelIdx + 1]}`
             );
             continue;
           }
+
+          // Any error on non-last model → try next
+          if (!isLastModel) continue;
         }
-        // On other errors or last model, throw
+        // Last model failed — throw
         throw err;
       }
     }
@@ -67,19 +83,38 @@ export class OpenRouterProvider implements LLMProvider {
     throw lastError || new LLMProviderError("openrouter", 500, "All fallback models exhausted");
   }
 
+  /** Merge system messages into the first user message for models that don't support system role */
+  private mergeSystemIntoUser(messages: LLMMessage[]): LLMMessage[] {
+    const systemContent = messages
+      .filter(m => m.role === "system")
+      .map(m => m.content)
+      .join("\n\n");
+
+    const nonSystem = messages.filter(m => m.role !== "system");
+
+    if (!systemContent) return nonSystem;
+
+    if (nonSystem.length > 0 && nonSystem[0].role === "user") {
+      return [
+        { role: "user", content: `${systemContent}\n\n${nonSystem[0].content}` },
+        ...nonSystem.slice(1),
+      ];
+    }
+
+    return [{ role: "user", content: systemContent }, ...nonSystem];
+  }
+
   private async *streamFromModel(
     model: string,
     messages: LLMMessage[],
     usedFallback: boolean,
     signal?: AbortSignal,
   ): AsyncIterable<string> {
-    // Separate system messages from chat messages
-    const systemMessages = messages.filter((m) => m.role === "system");
-    const chatMessages = messages.filter((m) => m.role !== "system");
-
+    // Pass all messages (including system) in the messages array — OpenAI/OpenRouter format.
+    // Note: body.system is Anthropic-specific and is NOT supported by OpenRouter.
     const body: Record<string, unknown> = {
       model,
-      messages: chatMessages.map((m) => ({ role: m.role, content: m.content })),
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
       stream: true,
       max_tokens: 2000,
       temperature: 0.7,
@@ -96,11 +131,7 @@ export class OpenRouterProvider implements LLMProvider {
       ];
     }
 
-    if (systemMessages.length > 0) {
-      body.system = systemMessages.map((m) => m.content).join("\n");
-    }
-
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 1;
     let response: Response | undefined;
     let lastError: LLMProviderError | null = null;
 
@@ -130,13 +161,23 @@ export class OpenRouterProvider implements LLMProvider {
         attempt,
       });
 
-      if (response.status === 429 && attempt < MAX_RETRIES) {
-        const delay = (attempt + 1) * 3000;
-        console.warn(
-          `[OpenRouterProvider] Model ${model} rate limited (429), retrying in ${delay}ms`
-        );
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
+      if (response.status === 429) {
+        // Respect Retry-After header if present, otherwise use backoff
+        const retryAfter = response.headers.get("Retry-After");
+        const delay = retryAfter
+          ? Math.min(parseInt(retryAfter, 10) * 1000, 15_000)
+          : (attempt + 1) * 5_000;
+
+        if (attempt < MAX_RETRIES) {
+          console.warn(`[OpenRouterProvider] Model ${model} rate limited (429), retrying in ${delay}ms`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        } else {
+          // Exhausted retries on this model — throw to trigger fallback
+          const raw = await response.text();
+          lastError = new LLMProviderError("openrouter", 429, raw);
+          throw lastError;
+        }
       }
 
       if (!response.ok) {

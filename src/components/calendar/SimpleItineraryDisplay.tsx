@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Clock, Calendar } from 'lucide-react';
+import { Clock, Calendar, MapPin } from 'lucide-react';
 import { format, parseISO, addDays } from 'date-fns';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -62,7 +62,7 @@ export function SimpleItineraryDisplay({
         const dayActivities = activitiesByDay[dayNumber];
         
         return (
-          <Card key={dayNumber} className="overflow-hidden">
+          <Card key={dayNumber} className="overflow-hidden bg-muted/30">
             <CardHeader className="bg-muted/50">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
@@ -85,10 +85,10 @@ export function SimpleItineraryDisplay({
                       index < dayActivities.length - 1 ? 'border-b' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex-none text-xs text-muted-foreground flex items-center gap-1 whitespace-nowrap pr-2">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="flex-none text-xs text-muted-foreground flex items-center gap-1 whitespace-nowrap pr-2 pt-0.5">
                         <Clock className="h-3 w-3" />
-                        <span className="truncate">
+                        <span>
                           {(() => {
                             const start = formatTime(activity.start_time);
                             const end = formatTime(activity.end_time);
@@ -97,9 +97,28 @@ export function SimpleItineraryDisplay({
                           })()}
                         </span>
                       </div>
-                      <h4 className="font-medium text-sm truncate flex-1 min-w-0">
-                        {activity.title}
-                      </h4>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm truncate">{activity.title}</h4>
+                        {activity.location_name && (
+                          (activity as Tables<'itinerary_items'> & { maps_link?: string | null }).maps_link ? (
+                            <a
+                              href={(activity as Tables<'itinerary_items'> & { maps_link?: string | null }).maps_link!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-1 text-xs text-primary hover:underline mt-0.5 w-fit"
+                            >
+                              <MapPin className="h-3 w-3" />
+                              {activity.location_name}
+                            </a>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {activity.location_name}
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

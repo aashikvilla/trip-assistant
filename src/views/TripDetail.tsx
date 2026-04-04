@@ -125,6 +125,9 @@ interface TripData {
   end_date?: string;
   destination?: string;
   destination_main?: string;
+  activity_level?: string | null;
+  vibe?: string | null;
+  budget?: string | null;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -161,12 +164,20 @@ const TripDetail = () => {
   const [activeTab, setActiveTab] = useState<TabId>("itinerary");
   const [isStandalone, setIsStandalone] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { events, status: streamStatus, itinerary: streamingItinerary, error: streamError, startStream, cancel } = useItineraryStream();
+  const {
+    events,
+    status: streamStatus,
+    itinerary: streamingItinerary,
+    error: streamError,
+    startStream,
+    cancel,
+  } = useItineraryStream();
   const isGenerating = streamStatus === "streaming";
   const { data: itineraryStatus } = useItineraryStatus(id || "");
   const { isOffline } = useConnectivity();
   const { get: getOfflineTrip } = useOfflineStore();
-  const [offlineData, setOfflineData] = useState<Awaited<ReturnType<typeof getOfflineTrip>>>(undefined);
+  const [offlineData, setOfflineData] =
+    useState<Awaited<ReturnType<typeof getOfflineTrip>>>(undefined);
 
   useEffect(() => {
     setIsStandalone(window.matchMedia("(display-mode: standalone)").matches);
@@ -184,8 +195,11 @@ const TripDetail = () => {
   });
 
   React.useEffect(() => {
-    if (itineraryStatus?.job_status === 'completed' || itineraryStatus?.job_status === 'failed') {
-      queryClient.invalidateQueries({ queryKey: ['trip', id] });
+    if (
+      itineraryStatus?.job_status === "completed" ||
+      itineraryStatus?.job_status === "failed"
+    ) {
+      queryClient.invalidateQueries({ queryKey: ["trip", id] });
     }
   }, [itineraryStatus?.job_status, queryClient, id]);
 
@@ -223,19 +237,21 @@ const TripDetail = () => {
   const { data: trip, isLoading } = useQuery<TripData | null>({
     queryKey: ["trip", id],
     enabled: !!id && !isOffline,
-    placeholderData: isOffline && offlineData
-      ? {
-          id: offlineData.tripId,
-          name: "Trip (offline)",
-          created_at: "",
-          updated_at: "",
-          created_by: "",
-          trip_members: offlineData.members as TripMember[],
-          expenses: offlineData.expenses as Expense[],
-          bookings: offlineData.bookings as Booking[],
-          itinerary_items: offlineData.itinerary as TripData["itinerary_items"],
-        }
-      : undefined,
+    placeholderData:
+      isOffline && offlineData
+        ? {
+            id: offlineData.tripId,
+            name: "Trip (offline)",
+            created_at: "",
+            updated_at: "",
+            created_by: "",
+            trip_members: offlineData.members as TripMember[],
+            expenses: offlineData.expenses as Expense[],
+            bookings: offlineData.bookings as Booking[],
+            itinerary_items:
+              offlineData.itinerary as TripData["itinerary_items"],
+          }
+        : undefined,
     queryFn: async () => {
       if (!id) {
         console.error("No trip ID provided");
@@ -305,7 +321,7 @@ const TripDetail = () => {
             }
             return acc;
           },
-          {}
+          {},
         );
 
         // Combine members with their profiles
@@ -318,7 +334,7 @@ const TripDetail = () => {
 
         console.log(
           "Members with profiles:",
-          JSON.stringify(membersWithProfiles, null, 2)
+          JSON.stringify(membersWithProfiles, null, 2),
         );
 
         // Get itinerary items
@@ -354,7 +370,7 @@ const TripDetail = () => {
               booking.details && typeof booking.details === "object"
                 ? (booking.details as Record<string, unknown>)
                 : {},
-          })
+          }),
         );
 
         // Get expenses with proper typing and transform data
@@ -380,36 +396,11 @@ const TripDetail = () => {
               ? (expense.split_between as string[])
               : [],
             category: expense.category || "",
-          })
+          }),
         );
 
         // Log the raw members data for debugging
         console.log("Raw members data:", JSON.stringify(membersData, null, 2));
-
-        // Define a type for the raw member data from Supabase
-        interface RawTripMember {
-          id: string;
-          role: "owner" | "editor" | "viewer";
-          profile_id: string;
-          profiles: Profile | null;
-          [key: string]: unknown;
-        }
-
-        // Transform members data to ensure proper typing
-        const transformedMembers = (membersData || []).map(
-          (member: RawTripMember) => {
-            console.log("Processing member:", JSON.stringify(member, null, 2));
-            return {
-              ...member,
-              profiles: member.profiles || null,
-            };
-          }
-        );
-
-        console.log(
-          "Transformed members:",
-          JSON.stringify(transformedMembers, null, 2)
-        );
 
         // Combine all the data with proper typing
         const data: TripData = {
@@ -475,7 +466,9 @@ const TripDetail = () => {
       {/* Offline indicator */}
       {isOffline && (
         <div className="bg-amber-500 text-white text-xs text-center py-1 px-4">
-          {offlineData ? "Viewing cached data — changes will sync when online" : "You're offline"}
+          {offlineData
+            ? "Viewing cached data — changes will sync when online"
+            : "You're offline"}
         </div>
       )}
       {/* Trip Header */}
@@ -484,42 +477,79 @@ const TripDetail = () => {
           <div className="max-w-7xl mx-auto flex items-center gap-3">
             {/* Back */}
             {isStandalone ? (
-              <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="shrink-0 -ml-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => window.history.back()}
+                className="shrink-0 -ml-1"
+              >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-1">
-                <Link href="/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="shrink-0 -ml-1"
+              >
+                <Link href="/dashboard">
+                  <ArrowLeft className="h-4 w-4" />
+                </Link>
               </Button>
             )}
 
             {/* Trip name + meta */}
             <div className="flex-1 min-w-0">
-              <h1 className="text-base sm:text-lg font-semibold leading-tight truncate">{trip.name}</h1>
+              <h1 className="text-base sm:text-lg font-semibold leading-tight truncate">
+                {trip.name}
+              </h1>
               <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                 {trip.destination_main && (
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" />{trip.destination_main}
+                    <MapPin className="h-3 w-3" />
+                    {trip.destination_main}
                   </span>
                 )}
                 {trip.start_date && trip.end_date && (
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3" />
-                    {format(new Date(trip.start_date), "MMM d")} – {format(new Date(trip.end_date), "MMM d, yyyy")}
+                    {format(new Date(trip.start_date), "MMM d")} –{" "}
+                    {format(new Date(trip.end_date), "MMM d, yyyy")}
                   </span>
                 )}
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Users className="h-3 w-3" />{trip.trip_members?.length || 0} members
+                  <Users className="h-3 w-3" />
+                  {trip.trip_members?.length || 0} members
                 </span>
+                {trip.activity_level && (
+                  <span className="text-xs text-muted-foreground capitalize hidden sm:inline">
+                    {trip.activity_level}
+                  </span>
+                )}
+                {trip.vibe && (
+                  <span className="text-xs text-muted-foreground capitalize hidden sm:inline">
+                    {trip.vibe}
+                  </span>
+                )}
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => setShowInviteDialog(true)} className="hidden sm:flex">
-                <Users className="h-3.5 w-3.5 mr-1.5" />Invite
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowInviteDialog(true)}
+                className="hidden sm:flex"
+              >
+                <Users className="h-3.5 w-3.5 mr-1.5" />
+                Invite
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEditDialog(true)}
+              >
                 <Edit className="h-3.5 w-3.5 sm:mr-1.5" />
                 <span className="hidden sm:inline">Edit Trip</span>
               </Button>
@@ -529,7 +559,10 @@ const TripDetail = () => {
       </header>
 
       {/* Main Content */}
-      <div ref={contentRef} className="flex-1 flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-9rem)] overflow-hidden">
+      <div
+        ref={contentRef}
+        className="flex-1 flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-9rem)] overflow-hidden"
+      >
         {/* Tabs Navigation - Enhanced Design */}
         <Tabs
           value={activeTab}
@@ -541,11 +574,15 @@ const TripDetail = () => {
             <TabsList className="h-auto bg-transparent rounded-none p-0 px-4 sm:px-6 gap-0 w-full justify-start overflow-x-auto">
               {(
                 [
-                  { value: "itinerary", icon: CalendarRange, label: "Itinerary" },
-                  { value: "chat",      icon: MessageSquare,  label: "Chat" },
-                  { value: "bookings",  icon: Hotel,          label: "Bookings" },
-                  { value: "expenses",  icon: DollarSign,     label: "Expenses" },
-                  { value: "members",   icon: Users,          label: "Members" },
+                  {
+                    value: "itinerary",
+                    icon: CalendarRange,
+                    label: "Itinerary",
+                  },
+                  { value: "chat", icon: MessageSquare, label: "Chat" },
+                  { value: "bookings", icon: Hotel, label: "Bookings" },
+                  { value: "expenses", icon: DollarSign, label: "Expenses" },
+                  { value: "members", icon: Users, label: "Members" },
                 ] as const
               ).map(({ value, icon: Icon, label }) => (
                 <TabsTrigger
@@ -564,201 +601,281 @@ const TripDetail = () => {
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="space-y-4 p-4 sm:p-6 overflow-y-auto h-full pb-24 md:pb-6">
-            <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between gap-2">
-              <OfflineStorageInfo tripId={trip.id} />
-              <div className="flex items-center gap-2 ml-auto">
-                <DownloadTripButton tripId={trip.id} />
-                {(trip.ai_itinerary_data || (trip.itinerary_items && trip.itinerary_items.length > 0)) && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => startStream(trip.id)}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? (
-                        <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-1.5" />
-                      )}
-                      Regenerate
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setSelectedItem(null);
-                        setShowItemDialog(true);
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-1.5" />
-                      Add Activity
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-            {/* AI Streaming / Generation Panel */}
-            {isGenerating && (() => {
-              const totalDays = trip.start_date && trip.end_date
-                ? Math.max(1, Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000) + 1)
-                : 7;
-              let progress = 0;
-              let daysReceived = 0;
-              for (const ev of events) {
-                if (ev.type === "agent_start" && progress < 5) progress = 5;
-                else if (ev.type === "agent_handoff" && ev.toAgent === "ResearchAgent") progress = Math.max(progress, 10);
-                else if (ev.type === "agent_handoff" && ev.toAgent === "PlanningAgent") progress = Math.max(progress, 20);
-                else if (ev.type === "partial_itinerary") { daysReceived++; progress = Math.max(progress, 20 + (daysReceived / totalDays) * 70); }
-                else if (ev.type === "itinerary_complete") progress = 100;
-              }
-              return (
-                <div className="space-y-4">
-                  {/* Progress bar */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Crafting your personalized itinerary...
-                      </div>
-                      <span className="text-xs text-muted-foreground">{Math.round(progress)}%</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">
-                        {daysReceived > 0 ? `${daysReceived} of ${totalDays} days planned` : "Researching your destination..."}
-                      </p>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-muted-foreground" onClick={cancel}>
-                        <XCircle className="h-3 w-3 mr-1" /> Cancel
+          <TabsContent
+            value="itinerary"
+            className="space-y-4 p-4 sm:p-6 overflow-y-auto h-full pb-24 md:pb-6"
+          >
+            <div className="max-w-6xl mx-auto">
+              <div className="flex items-center justify-between gap-2">
+                <OfflineStorageInfo tripId={trip.id} />
+                <div className="flex items-center gap-2 ml-auto">
+                  <DownloadTripButton tripId={trip.id} />
+                  {(trip.ai_itinerary_data ||
+                    (trip.itinerary_items &&
+                      trip.itinerary_items.length > 0)) && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startStream(trip.id)}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 mr-1.5" />
+                        )}
+                        Regenerate
                       </Button>
-                    </div>
-                  </div>
-                  {/* AI thinking panel */}
-                  <StreamingThinkingPanel events={events} isComplete={false} />
-                  {/* Partial day cards as they arrive */}
-                  {streamingItinerary && streamingItinerary.days.length > 0 && (
-                    <div className="space-y-3">
-                      {streamingItinerary.days.map((day, i) => (
-                        <PartialDayCard
-                          key={day.day}
-                          day={day}
-                          isStreaming={i === streamingItinerary.days.length - 1}
-                        />
-                      ))}
-                    </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setSelectedItem(null);
+                          setShowItemDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Add Activity
+                      </Button>
+                    </>
                   )}
                 </div>
-              );
-            })()}
-            {/* AI Guidance Panel — show when idle/failed and no itinerary */}
-            {!isGenerating && streamStatus !== "complete" && (!trip.ai_itinerary_data ||
-              trip.itinerary_status === "generating" ||
-              trip.itinerary_status === "failed" ||
-              streamStatus === "error") && (
-              <Card>
-                <CardHeader className="pb-2 text-center">
-                  <CardTitle className="flex items-center justify-center gap-2 text-lg font-semibold">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    Let’s plan this trip together
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm text-muted-foreground text-center">
-                  {trip.itinerary_status === "failed" || streamStatus === "error" ? (
+              </div>
+              {/* AI Streaming / Generation Panel */}
+              {isGenerating &&
+                (() => {
+                  const totalDays =
+                    trip.start_date && trip.end_date
+                      ? Math.max(
+                          1,
+                          Math.ceil(
+                            (new Date(trip.end_date).getTime() -
+                              new Date(trip.start_date).getTime()) /
+                              86400000,
+                          ) + 1,
+                        )
+                      : 7;
+                  let progress = 0;
+                  let daysReceived = 0;
+                  for (const ev of events) {
+                    if (ev.type === "agent_start" && progress < 5) progress = 5;
+                    else if (
+                      ev.type === "agent_handoff" &&
+                      ev.toAgent === "ResearchAgent"
+                    )
+                      progress = Math.max(progress, 10);
+                    else if (
+                      ev.type === "agent_handoff" &&
+                      ev.toAgent === "PlanningAgent"
+                    )
+                      progress = Math.max(progress, 20);
+                    else if (ev.type === "partial_itinerary") {
+                      daysReceived++;
+                      progress = Math.max(
+                        progress,
+                        20 + (daysReceived / totalDays) * 70,
+                      );
+                    } else if (ev.type === "itinerary_complete") progress = 100;
+                  }
+                  return (
                     <div className="space-y-4">
-                      <p className="text-foreground">
-                        We couldn’t generate your plan just now.
-                      </p>
-                      {streamError && (
-                        <p className="text-xs text-destructive bg-destructive/10 rounded p-2">
-                          {streamError}
-                        </p>
+                      {/* Progress bar */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2 text-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Crafting your personalized itinerary...
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {Math.round(progress)}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">
+                            {daysReceived > 0
+                              ? `${daysReceived} of ${totalDays} days planned`
+                              : "Researching your destination..."}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs text-muted-foreground"
+                            onClick={cancel}
+                          >
+                            <XCircle className="h-3 w-3 mr-1" /> Cancel
+                          </Button>
+                        </div>
+                      </div>
+                      {/* AI thinking panel */}
+                      <StreamingThinkingPanel
+                        events={events}
+                        isComplete={false}
+                      />
+                      {/* Partial day cards as they arrive */}
+                      {streamingItinerary &&
+                        streamingItinerary.days.length > 0 && (
+                          <div className="space-y-3">
+                            {streamingItinerary.days.map((day, i) => (
+                              <PartialDayCard
+                                key={day.day}
+                                day={day}
+                                isStreaming={
+                                  i === streamingItinerary.days.length - 1
+                                }
+                              />
+                            ))}
+                          </div>
+                        )}
+                    </div>
+                  );
+                })()}
+              {/* AI Guidance Panel — show when idle/failed and no itinerary */}
+              {!isGenerating &&
+                streamStatus !== "complete" &&
+                (!trip.ai_itinerary_data ||
+                  trip.itinerary_status === "generating" ||
+                  trip.itinerary_status === "failed" ||
+                  streamStatus === "error") && (
+                  <Card>
+                    <CardHeader className="pb-2 text-center">
+                      <CardTitle className="flex items-center justify-center gap-2 text-lg font-semibold">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        Let’s plan this trip together
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-sm text-muted-foreground text-center">
+                      {trip.itinerary_status === "failed" ||
+                      streamStatus === "error" ? (
+                        <div className="space-y-4">
+                          <p className="text-foreground">
+                            We couldn’t generate your plan just now.
+                          </p>
+                          {streamError && (
+                            <p className="text-xs text-destructive bg-destructive/10 rounded p-2">
+                              {streamError}
+                            </p>
+                          )}
+                          <div className="inline-block text-left">
+                            <ul className="list-disc pl-5 space-y-1">
+                              <li>Double-check your dates and destination.</li>
+                              <li>
+                                Invite your travel buddies so we factor group
+                                preferences.
+                              </li>
+                              <li>
+                                Set your travel preferences for the best
+                                recommendations.
+                              </li>
+                            </ul>
+                          </div>
+                          <div className="flex justify-center gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => startStream(trip.id)}
+                              disabled={isGenerating}
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Retry AI Generation
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowInviteDialog(true)}
+                            >
+                              <Users className="h-4 w-4 mr-2" /> Add People
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-5">
+                          <p className="text-foreground max-w-md mx-auto">
+                            Ready to create some memories in{" "}
+                            {trip.destination_main}? I can whip up a
+                            personalized itinerary in just a few moments. For
+                            the best results, let’s get a few details sorted
+                            first.
+                          </p>
+                          <div className="inline-block text-left bg-muted p-4 rounded-lg border">
+                            <ul className="space-y-3">
+                              <li className="flex items-start gap-3">
+                                <Users className="h-4 w-4 mt-1 shrink-0 text-primary" />
+                                <div>
+                                  <strong>Add your travel buddies.</strong> The
+                                  more I know about who’s going, the better I
+                                  can tailor activities for everyone.
+                                  <br />
+                                  <span className="text-xs text-primary">
+                                    Pro-tip: Ask them to fill in their profile
+                                    preferences for an even more memorable trip!
+                                  </span>
+                                </div>
+                              </li>
+                              <li className="flex items-start gap-3">
+                                <Edit className="h-4 w-4 mt-1 shrink-0 text-primary" />
+                                <div>
+                                  <strong>Set the trip vibe.</strong> Are we
+                                  going for a chill beach holiday or a
+                                  fast-paced city adventure? Setting the mood
+                                  helps me find the perfect spots.
+                                </div>
+                              </li>
+                            </ul>
+                          </div>
+                          <div className="flex flex-wrap justify-center gap-2 pt-2">
+                            <Button
+                              size="sm"
+                              onClick={() => startStream(trip.id)}
+                              disabled={isGenerating}
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Generate AI Itinerary
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowInviteDialog(true)}
+                            >
+                              <Users className="h-4 w-4 mr-2" /> Add People
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowEditDialog(true)}
+                            >
+                              <Edit className="h-4 w-4 mr-2" /> Set Preferences
+                            </Button>
+                          </div>
+                        </div>
                       )}
-                      <div className="inline-block text-left">
-                        <ul className="list-disc pl-5 space-y-1">
-                          <li>Double-check your dates and destination.</li>
-                          <li>Invite your travel buddies so we factor group preferences.</li>
-                          <li>Set your travel preferences for the best recommendations.</li>
-                        </ul>
-                      </div>
-                      <div className="flex justify-center gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => startStream(trip.id)}
-                          disabled={isGenerating}
-                        >
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Retry AI Generation
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowInviteDialog(true)}
-                        >
-                          <Users className="h-4 w-4 mr-2" /> Add People
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-5">
-                      <p className="text-foreground max-w-md mx-auto">
-                        Ready to create some memories in {trip.destination_main}? I can whip up a personalized itinerary in just a few moments. For the best results, let’s get a few details sorted first.
-                      </p>
-                      <div className="inline-block text-left bg-muted p-4 rounded-lg border">
-                        <ul className="space-y-3">
-                          <li className="flex items-start gap-3">
-                            <Users className="h-4 w-4 mt-1 shrink-0 text-primary" />
-                            <div>
-                              <strong>Add your travel buddies.</strong> The more I know about who’s going, the better I can tailor activities for everyone.
-                              <br /><span className="text-xs text-primary">Pro-tip: Ask them to fill in their profile preferences for an even more memorable trip!</span>
-                            </div>
-                          </li>
-                          <li className="flex items-start gap-3">
-                            <Edit className="h-4 w-4 mt-1 shrink-0 text-primary" />
-                            <div>
-                              <strong>Set the trip vibe.</strong> Are we going for a chill beach holiday or a fast-paced city adventure? Setting the mood helps me find the perfect spots.
-                            </div>
-                          </li>
-                        </ul>
-                      </div>
-                      <div className="flex flex-wrap justify-center gap-2 pt-2">
-                        <Button size="sm" onClick={() => startStream(trip.id)} disabled={isGenerating}>
-                          <Sparkles className="h-4 w-4 mr-2" />Generate AI Itinerary
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setShowInviteDialog(true)}>
-                          <Users className="h-4 w-4 mr-2" /> Add People
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setShowEditDialog(true)}>
-                          <Edit className="h-4 w-4 mr-2" /> Set Preferences
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-            {/* AI Generated Itinerary */}
-            {trip.ai_itinerary_data &&
-              trip.itinerary_status === "completed" && (
-                <SimpleItineraryCalendar
-                  tripId={trip.id}
-                  startDate={trip.start_date as unknown as string}
-                  onSelect={(item) => {
-                    setSelectedItem(item);
-                    setShowDetailsDialog(true);
-                  }}
-                />
-              )}
+                    </CardContent>
+                  </Card>
+                )}
+              {/* AI Generated Itinerary */}
+              {trip.ai_itinerary_data &&
+                trip.itinerary_status === "completed" && (
+                  <SimpleItineraryCalendar
+                    tripId={trip.id}
+                    startDate={trip.start_date as unknown as string}
+                    onSelect={(item) => {
+                      setSelectedItem(item);
+                      setShowDetailsDialog(true);
+                    }}
+                  />
+                )}
             </div>
           </TabsContent>
 
-          <TabsContent value="chat" className="p-0 overflow-y-auto h-full pb-16 md:pb-0">
+          <TabsContent
+            value="chat"
+            className="p-0 overflow-y-auto h-full pb-16 md:pb-0"
+          >
             <TripChat tripId={trip.id} />
           </TabsContent>
 
@@ -784,7 +901,9 @@ const TripDetail = () => {
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-semibold">Members</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{trip.trip_members?.length || 0} people on this trip</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {trip.trip_members?.length || 0} people on this trip
+                    </p>
                   </div>
                   <Button size="sm" onClick={() => setShowInviteDialog(true)}>
                     <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -797,19 +916,19 @@ const TripDetail = () => {
                   {trip.trip_members?.map(
                     (
                       member: TripMember & Record<string, unknown>,
-                      index: number
+                      index: number,
                     ) => {
                       // Log the member data for debugging
                       console.log(
                         "Raw member data:",
-                        JSON.stringify(member, null, 2)
+                        JSON.stringify(member, null, 2),
                       );
 
                       // Helper function to safely get nested properties
                       const getNested = (
                         obj: unknown,
                         path: string[],
-                        defaultValue: unknown = null
+                        defaultValue: unknown = null,
                       ): unknown => {
                         return path.reduce((acc, key) => {
                           return acc && typeof acc === "object" && key in acc
@@ -899,7 +1018,7 @@ const TripDetail = () => {
                                   fallback.textContent = avatarInitial;
                                   target.parentNode?.insertBefore(
                                     fallback,
-                                    target.nextSibling
+                                    target.nextSibling,
                                   );
                                 }}
                               />
@@ -931,7 +1050,7 @@ const TripDetail = () => {
                           </Badge>
                         </div>
                       );
-                    }
+                    },
                   )}
                 </div>
               </div>
@@ -989,10 +1108,7 @@ const TripDetail = () => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      <MobileBottomNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };

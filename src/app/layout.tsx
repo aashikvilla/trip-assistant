@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   title: "Vibe Trip",
   description: "AI-powered group travel planning app",
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: "/icons/logo.png",
+    apple: "/icons/logo.png",
   },
 };
 

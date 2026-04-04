@@ -3,10 +3,13 @@ import type { Database } from "@/integrations/supabase/types";
 import { createSupabaseServerClient } from "@/integrations/supabase/server";
 import { createLLMProvider } from "@/services/ai/providers";
 import { Orchestrator } from "@/services/ai/orchestrator";
+import { SingleAgentOrchestrator } from "@/services/ai/singleAgentOrchestrator";
 import type { StreamEmitter, StreamEvent } from "@/services/ai/types";
 
-// Vercel Hobby max is 60s; Pro supports up to 300s.
-export const maxDuration = 60;
+// Vercel Pro supports up to 300s (5 min). Hobby is capped at 60s.
+// Single-agent itinerary generation can take 4–6 minutes on free LLM tier.
+// Upgrade to Vercel Pro for full support: https://vercel.com/pricing
+export const maxDuration = 300;
 
 function getServiceClient() {
   return createClient<Database>(
@@ -124,11 +127,29 @@ export async function GET(request: Request) {
         jobId: job.id,
       });
 
-      const provider = createLLMProvider("ITINERARY_PLANNING");
-      const orchestrator = new Orchestrator(provider, emitter, abortController);
+      // SSE heartbeat — sends a comment every 20s to keep the connection alive.
+      // Without this, proxies and Vercel's edge layer close idle SSE connections
+      // before the LLM finishes (single-agent calls can take 4–6 min).
+      const heartbeatInterval = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(": heartbeat\n\n"));
+        } catch {
+          clearInterval(heartbeatInterval);
+        }
+      }, 20_000);
+
+      // Feature flag: ITINERARY_AGENT_MODE=single uses one LLM call (rate-limit friendly)
+      // Default "multi" uses the full Research → Planning pipeline
+      const agentMode = process.env.ITINERARY_AGENT_MODE ?? "multi";
+      const runner = agentMode === "single"
+        ? new SingleAgentOrchestrator(emitter, abortController)
+        : new Orchestrator(createLLMProvider("ITINERARY_PLANNING"), emitter, abortController);
+
+      console.info("[Stream] Starting generation", { tripId, jobId: job.id, agentMode });
 
       try {
-        await orchestrator.run(tripId, job.id);
+        await runner.run(tripId, job.id);
+        clearInterval(heartbeatInterval);
       } catch (err) {
         // Catch any errors not handled by orchestrator and ensure trips table is updated
         const message = err instanceof Error ? err.message : "Unknown error";
@@ -158,6 +179,7 @@ export async function GET(request: Request) {
           recoverable: false,
         });
       } finally {
+        clearInterval(heartbeatInterval);
         try {
           controller.close();
         } catch {

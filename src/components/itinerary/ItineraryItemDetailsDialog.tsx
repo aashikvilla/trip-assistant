@@ -143,9 +143,20 @@ export const ItineraryItemDetailsDialog: React.FC<Props> = ({
           )}
 
           {item.location_name && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              <span>{item.location_name}</span>
+            <div className="flex items-center gap-2 text-sm">
+              <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+              {(item as typeof item & { maps_link?: string | null }).maps_link ? (
+                <a
+                  href={(item as typeof item & { maps_link?: string | null }).maps_link!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  {item.location_name}
+                </a>
+              ) : (
+                <span className="text-muted-foreground">{item.location_name}</span>
+              )}
             </div>
           )}
 
@@ -283,7 +294,17 @@ export const ItineraryItemDetailsDialog: React.FC<Props> = ({
 
         {/* Bottom actions row */}
         <div className="flex items-center justify-between pt-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {(item as typeof item & { maps_link?: string | null }).maps_link && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open((item as typeof item & { maps_link?: string | null }).maps_link!, "_blank", "noopener,noreferrer")}
+                className="text-primary"
+              >
+                <MapPin className="h-4 w-4 mr-1" /> Maps
+              </Button>
+            )}
             {normalizedLink && (
               <Button
                 variant="link"

@@ -9,12 +9,14 @@ interface VoiceRecorderButtonProps {
   tripId: string;
   replyToId?: string | null;
   onSent: () => void;
+  onStateChange?: (isActive: boolean) => void;
 }
 
 export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
   tripId,
   replyToId = null,
   onSent,
+  onStateChange,
 }) => {
   const { user } = useAuth();
 
@@ -62,6 +64,17 @@ export const VoiceRecorderButton: React.FC<VoiceRecorderButtonProps> = ({
     cancelRecording,
     retryUpload,
   } = useVoiceRecorder(tripId, replyToId, onSent, sendVoiceMessage);
+
+  // Notify parent when recording becomes active or idle
+  const prevStateRef = React.useRef(state);
+  React.useEffect(() => {
+    const wasActive = prevStateRef.current === 'recording' || prevStateRef.current === 'processing';
+    const isActive = state === 'recording' || state === 'processing';
+    if (wasActive !== isActive) {
+      onStateChange?.(isActive);
+    }
+    prevStateRef.current = state;
+  }, [state, onStateChange]);
 
   if (!isSupported) return null;
 

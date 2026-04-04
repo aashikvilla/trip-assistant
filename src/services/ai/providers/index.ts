@@ -19,21 +19,26 @@ export interface LLMProvider {
 export const MODEL_CHAINS: Record<string, readonly string[]> = {
   WEB_SEARCH: [
     "qwen/qwen3.6-plus:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-12b-it:free",
+    "google/gemma-3-4b-it:free",
     "google/gemma-3-27b-it:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
   ],
   ITINERARY_PLANNING: [
-    "meta-llama/llama-3.3-70b-instruct:free",
     "qwen/qwen3.6-plus:free",
+    "google/gemma-3-12b-it:free",
+    "google/gemma-3-4b-it:free",
     "google/gemma-3-27b-it:free",
-    "mistralai/mistral-7b-instruct:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
   ],
   CHAT: [
+    "qwen/qwen3.6-plus:free",
     "google/gemma-3-27b-it:free",
     "meta-llama/llama-3.3-70b-instruct:free",
   ],
   REVIEW: [
-    "openai/gpt-oss-120b:free",
+    "qwen/qwen3.6-plus:free",
+    "google/gemma-3-27b-it:free",
     "meta-llama/llama-3.3-70b-instruct:free",
   ],
 } as const;

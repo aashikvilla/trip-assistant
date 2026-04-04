@@ -77,16 +77,16 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({ tripId }) => {
               title="Record Payment"
             >
               <CreditCard className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden md:inline md:ml-2">Record Payment</span>
+              <span className="hidden md:inline md:ml-2 md:block">Record Payment</span>
             </Button>
             <Button
               size="sm"
-              className="h-9 w-9 p-0 md:w-auto md:px-3"
+              className="h-9 w-9 p-0 md:w-auto md:px-4"
               onClick={() => setShowExpenseDialog(true)}
               title="Add Expense"
             >
               <Plus className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden md:inline md:ml-2">Add Expense</span>
+              <span className="hidden md:inline md:ml-2 md:block">Add Expense</span>
             </Button>
           </div>
         }
@@ -97,7 +97,7 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({ tripId }) => {
 
         {/* Expenses List */}
         <div>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4 pt-1">
             <Receipt className="h-5 w-5" />
             <h3 className="text-lg font-semibold">All Transactions</h3>
           </div>

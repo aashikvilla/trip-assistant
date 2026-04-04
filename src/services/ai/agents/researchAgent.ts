@@ -52,40 +52,41 @@ export class ResearchAgent implements Agent {
         thought: `Researching ${destination} (${queries.length} specialized searches)...`,
       });
 
-      // Execute all queries in parallel
-      const searchPromises = queries.map(({ q, category }) =>
-        (async () => {
-          if (abortSignal.aborted) return { category, results: [] };
+      // Execute queries sequentially to respect free-tier rate limits (~8 RPM).
+      // Parallel execution exhausts the rate limit across all models simultaneously.
+      const searchResults: Array<{ category: string; results: typeof queries[0] extends never ? never[] : Array<{ title: string; snippet: string; url?: string; category?: string }> }> = [];
+      for (const { q, category } of queries) {
+        if (abortSignal.aborted) {
+          searchResults.push({ category, results: [] });
+          continue;
+        }
 
-          emitter.emit({
-            type: "tool_call",
-            timestamp: now(),
-            toolName: "web_search",
-            input: { query: q },
-          });
+        emitter.emit({
+          type: "tool_call",
+          timestamp: now(),
+          toolName: "web_search",
+          input: { query: q },
+        });
 
-          const result = await this.searchTool.execute({ query: q }, abortSignal);
-          const resultCount = result.data?.results.length ?? 0;
-          const hasError = !result.success || result.error;
+        const result = await this.searchTool.execute({ query: q }, abortSignal);
+        const resultCount = result.data?.results.length ?? 0;
+        const hasError = !result.success || result.error;
 
-          emitter.emit({
-            type: "tool_result",
-            timestamp: now(),
-            toolName: "web_search",
-            success: result.success,
-            summary: hasError
-              ? `${category} search failed: ${result.error ?? "unknown error"}`
-              : `Found ${resultCount} ${category} results for "${destination}"`,
-          });
+        emitter.emit({
+          type: "tool_result",
+          timestamp: now(),
+          toolName: "web_search",
+          success: result.success,
+          summary: hasError
+            ? `${category} search failed: ${result.error ?? "unknown error"}`
+            : `Found ${resultCount} ${category} results for "${destination}"`,
+        });
 
-          return {
-            category,
-            results: result.data?.results?.map(r => ({ ...r, category })) ?? [],
-          };
-        })()
-      );
-
-      const searchResults = await Promise.all(searchPromises);
+        searchResults.push({
+          category,
+          results: result.data?.results?.map(r => ({ ...r, category })) ?? [],
+        });
+      }
 
       // Merge all results, preserving categories and capping at 20 total items
       const mergedResults = searchResults.flatMap(sr => sr.results).slice(0, 20);

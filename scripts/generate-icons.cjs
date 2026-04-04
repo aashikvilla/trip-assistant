@@ -56,7 +56,7 @@ function createMinimalPNG(size) {
 const iconsDir = path.join(__dirname, "../public/icons");
 fs.mkdirSync(iconsDir, { recursive: true });
 
-for (const [name, size] of [["icon-192.png", 192], ["icon-512.png", 512], ["icon-512-maskable.png", 512]]) {
+for (const [name, size] of [["logo.png", 192], ["logo.png", 512], ["logo.png", 512]]) {
   fs.writeFileSync(path.join(iconsDir, name), createMinimalPNG(size));
   console.log(`Created ${name} (${size}x${size})`);
 }

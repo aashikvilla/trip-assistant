@@ -51,14 +51,15 @@ export class PlanningAgent implements Agent {
       });
     }
 
-    // Generate all days in parallel
-    const dayGenerationPromises = daysToGenerate.map(dayNum =>
-      this.generateSingleDay(dayNum, systemPrompt, tripContext, researchResults, existingItinerary, reason, abortSignal, emitter)
-    );
+    // Generate days sequentially to avoid exhausting free-tier rate limits.
+    // Free models cap at ~8 RPM — parallel calls across N days immediately hit this limit.
+    const generatedDays: ParsedItineraryDay[] = [];
+    for (const dayNum of daysToGenerate) {
+      if (abortSignal?.aborted) break;
+      const day = await this.generateSingleDay(dayNum, systemPrompt, tripContext, researchResults, existingItinerary, reason, abortSignal, emitter);
+      generatedDays.push(day);
+    }
 
-    const generatedDays = await Promise.all(dayGenerationPromises);
-
-    // Sort by day number (parallel execution may complete out of order)
     const days_sorted = generatedDays.sort((a, b) => a.day - b.day);
     days.push(...days_sorted);
 
