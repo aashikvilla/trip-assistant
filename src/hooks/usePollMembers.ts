@@ -13,8 +13,8 @@ export function usePollMembers(tripId: string) {
       const { data, error } = await supabase
         .from('trip_members')
         .select(`
-          user_id,
-          profiles!trip_members_user_id_fkey(first_name, last_name)
+          profile_id,
+          profiles:profiles!trip_members_profile_id_fkey(first_name, last_name)
         `)
         .eq('trip_id', tripId)
         .eq('invitation_status', 'accepted');
@@ -22,7 +22,7 @@ export function usePollMembers(tripId: string) {
       if (error) throw error;
 
       return (data || []).map((row: any) => ({
-        user_id: row.user_id,
+        user_id: row.profile_id,
         user_name: row.profiles
           ? `${row.profiles.first_name ?? ''} ${row.profiles.last_name ?? ''}`.trim()
           : 'Unknown',

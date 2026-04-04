@@ -42,17 +42,19 @@ export class ResearchAgent implements Agent {
 
       const result = await this.searchTool.execute({ query }, abortSignal);
 
+      const resultCount = result.data?.results.length ?? 0;
+      const hasError = !result.success || result.error;
+
       emitter.emit({
         type: "tool_result",
         timestamp: now(),
         toolName: "web_search",
         success: result.success,
-        summary: result.success
-          ? `Found ${result.data?.results.length ?? 0} results for "${destination}"`
-          : `Search failed: ${result.error ?? "unknown error"}`,
+        summary: hasError
+          ? `Search failed: ${result.error ?? "unknown error"}. Itinerary will use general knowledge.`
+          : `Found ${resultCount} results for "${destination}"`,
       });
 
-      const resultCount = result.data?.results.length ?? 0;
       console.info("[ResearchAgent]", { destination, searchType: "general", durationMs: Date.now() - destStart, resultCount });
 
       researchResults.push({
@@ -81,17 +83,20 @@ export class ResearchAgent implements Agent {
 
         const foodResult = await this.searchTool.execute({ query: foodQuery }, abortSignal);
 
+        const foodResultCount = foodResult.data?.results.length ?? 0;
+        const hasFoodError = !foodResult.success || foodResult.error;
+
         emitter.emit({
           type: "tool_result",
           timestamp: now(),
           toolName: "web_search",
           success: foodResult.success,
-          summary: foodResult.success
-            ? `Found ${foodResult.data?.results.length ?? 0} dining results for "${destination}"`
-            : `Dining search failed`,
+          summary: hasFoodError
+            ? `Dining search failed: ${foodResult.error ?? "unknown error"}`
+            : `Found ${foodResultCount} dining results for "${destination}"`,
         });
 
-        console.info("[ResearchAgent]", { destination, searchType: "dining", durationMs: Date.now() - destStart, resultCount: foodResult.data?.results.length ?? 0 });
+        console.info("[ResearchAgent]", { destination, searchType: "dining", durationMs: Date.now() - destStart, resultCount: foodResultCount });
 
         // Merge food results into the destination research
         if (foodResult.data?.results.length) {

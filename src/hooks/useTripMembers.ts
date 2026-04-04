@@ -31,7 +31,7 @@ export function useTripMembers(tripId?: string) {
           role,
           profile_id,
           invitation_status,
-          profiles:profiles (
+          profiles:profiles!trip_members_profile_id_fkey (
             id,
             first_name,
             last_name,

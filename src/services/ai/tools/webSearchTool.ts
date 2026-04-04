@@ -9,6 +9,7 @@ export interface SearchInput {
 export interface SearchResultItem {
   title: string;
   snippet: string;
+  url?: string;
 }
 
 export interface SearchOutput {
@@ -17,23 +18,23 @@ export interface SearchOutput {
 
 export class WebSearchTool implements Tool<SearchInput, SearchOutput> {
   name = "web_search";
-  description = "Research destinations, activities, and travel tips using the LLM.";
+  description = "Research destinations, activities, and travel tips using real-time web search.";
 
   async execute(input: SearchInput, signal?: AbortSignal): Promise<ToolResult<SearchOutput>> {
     const sanitizedQuery = sanitizePII(input.query);
 
     try {
-      const provider = createLLMProvider();
+      const provider = createLLMProvider("WEB_SEARCH");
 
       const messages: LLMMessage[] = [
         {
           role: "system",
           content:
-            "You are a travel research assistant. Given a search query about travel, return a JSON array of up to 8 informative results from your knowledge. Each result must have: title (string), snippet (2-3 sentence summary of useful travel info). Respond with ONLY the JSON array, no markdown fences.",
+            "You are a travel research assistant with access to real-time web search. Given a search query about travel, return a JSON array of up to 8 informative results from web search. Each result must have: title (string), snippet (2-3 sentence summary of useful travel info), and url (string). Respond with ONLY the JSON array, no markdown fences.",
         },
         {
           role: "user",
-          content: `Search query: "${sanitizedQuery}"\n\nReturn a JSON array of travel research results.`,
+          content: `Search query: "${sanitizedQuery}"\n\nReturn a JSON array of travel research results from web search.`,
         },
       ];
 
@@ -54,12 +55,15 @@ export class WebSearchTool implements Tool<SearchInput, SearchOutput> {
         .map((r) => ({
           title: String(r.title ?? ""),
           snippet: String(r.snippet ?? ""),
+          url: r.url ? String(r.url) : undefined,
         }))
         .filter((r) => r.title || r.snippet);
 
+      console.info("[WebSearchTool]", { query: sanitizedQuery, resultCount: results.length });
       return { success: true, data: { results } };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Research failed";
+      console.error("[WebSearchTool]", { query: sanitizedQuery, error: message });
       return { success: false, data: { results: [] }, error: message };
     }
   }

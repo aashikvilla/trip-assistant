@@ -177,8 +177,10 @@ export type Database = {
           error_message: string | null
           id: string
           progress: number
+          started_at: string | null
           status: string
           trip_id: string | null
+          updated_at: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -186,8 +188,10 @@ export type Database = {
           error_message?: string | null
           id?: string
           progress?: number
+          started_at?: string | null
           status?: string
           trip_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -195,8 +199,10 @@ export type Database = {
           error_message?: string | null
           id?: string
           progress?: number
+          started_at?: string | null
           status?: string
           trip_id?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -647,6 +653,50 @@ export type Database = {
           },
         ]
       }
+      trip_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_resolved: boolean
+          metadata: Json | null
+          title: string
+          trip_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_resolved?: boolean
+          metadata?: Json | null
+          title: string
+          trip_id: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_resolved?: boolean
+          metadata?: Json | null
+          title?: string
+          trip_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_notifications_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_poll_votes: {
         Row: {
           created_at: string
@@ -692,10 +742,13 @@ export type Database = {
       trip_polls: {
         Row: {
           created_at: string
+          created_by: string | null
           expires_at: string | null
           id: string
           is_closed: boolean
+          is_important: boolean
           message_id: string
+          nudge_cooldown_until: string | null
           options: Json
           poll_type: string
           question: string
@@ -703,10 +756,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           expires_at?: string | null
           id?: string
           is_closed?: boolean
+          is_important?: boolean
           message_id: string
+          nudge_cooldown_until?: string | null
           options?: Json
           poll_type?: string
           question: string
@@ -714,10 +770,13 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           expires_at?: string | null
           id?: string
           is_closed?: boolean
+          is_important?: boolean
           message_id?: string
+          nudge_cooldown_until?: string | null
           options?: Json
           poll_type?: string
           question?: string
@@ -817,6 +876,7 @@ export type Database = {
       trips: {
         Row: {
           activity_level: string | null
+          ai_itinerary_data: Json | null
           budget: string | null
           cover_image_url: string | null
           created_at: string
@@ -827,9 +887,11 @@ export type Database = {
           end_date: string | null
           hotel_recommendations: Json
           id: string
+          itinerary_generated_at: string | null
+          itinerary_status: string | null
           local_travel_info: Json
-          must_do: string[]|null
-          must_do_activities: string[] | null
+          must_do: string[]
+          must_do_activities: Json
           name: string
           start_date: string | null
           travel_style: string | null
@@ -840,6 +902,7 @@ export type Database = {
         }
         Insert: {
           activity_level?: string | null
+          ai_itinerary_data?: Json | null
           budget?: string | null
           cover_image_url?: string | null
           created_at?: string
@@ -850,6 +913,8 @@ export type Database = {
           end_date?: string | null
           hotel_recommendations?: Json
           id?: string
+          itinerary_generated_at?: string | null
+          itinerary_status?: string | null
           local_travel_info?: Json
           must_do?: string[]
           must_do_activities?: Json
@@ -863,6 +928,7 @@ export type Database = {
         }
         Update: {
           activity_level?: string | null
+          ai_itinerary_data?: Json | null
           budget?: string | null
           cover_image_url?: string | null
           created_at?: string
@@ -873,6 +939,8 @@ export type Database = {
           end_date?: string | null
           hotel_recommendations?: Json
           id?: string
+          itinerary_generated_at?: string | null
+          itinerary_status?: string | null
           local_travel_info?: Json
           must_do?: string[]
           must_do_activities?: Json
@@ -895,9 +963,13 @@ export type Database = {
         Args: { invitation_token_param: string }
         Returns: Json
       }
-      cleanup_typing_indicators: { Args: Record<PropertyKey, never>; Returns: undefined }
-      generate_invitation_code: { Args: Record<PropertyKey, never>; Returns: string }
-      generate_unique_trip_code: { Args: Record<PropertyKey, never>; Returns: string }
+      cleanup_typing_indicators: { Args: never; Returns: undefined }
+      generate_invitation_code: { Args: never; Returns: string }
+      generate_unique_trip_code: { Args: never; Returns: string }
+      get_trip_chat_messages: {
+        Args: { p_limit?: number; p_offset?: number; p_trip_id: string }
+        Returns: Json
+      }
       get_trip_dietary_preferences: {
         Args: { trip_id_param: string }
         Returns: Json
@@ -908,23 +980,23 @@ export type Database = {
       }
       has_trip_role: {
         Args: {
-          _user_id: string
           _trip_id: string
+          _user_id: string
           roles: Database["public"]["Enums"]["trip_member_role"][]
         }
         Returns: boolean
       }
       is_trip_member: {
-        Args: { _user_id: string; _trip_id: string }
+        Args: { _trip_id: string; _user_id: string }
         Returns: boolean
       }
       is_trip_owner: {
-        Args: { _user_id: string; _trip_id: string }
+        Args: { _trip_id: string; _user_id: string }
         Returns: boolean
       }
       join_trip_by_code: { Args: { code_param: string }; Returns: Json }
       update_typing_indicator: {
-        Args: { p_trip_id: string; p_is_typing?: boolean }
+        Args: { p_is_typing?: boolean; p_trip_id: string }
         Returns: undefined
       }
       validate_hotel_recommendations: { Args: { data: Json }; Returns: boolean }

@@ -18,7 +18,7 @@ export class PlanningAgent implements Agent {
   private provider: LLMProvider;
 
   constructor() {
-    this.provider = createLLMProvider();
+    this.provider = createLLMProvider("ITINERARY_PLANNING");
   }
 
   async run(context: AgentRunContext, emitter: StreamEmitter): Promise<AgentResult> {
@@ -44,12 +44,23 @@ export class PlanningAgent implements Agent {
       if (abortSignal.aborted) break;
       const dayStart = Date.now();
 
-      emitter.emit({
-        type: "agent_thought",
-        timestamp: now(),
-        agentName: "PlanningAgent",
-        thought: `Planning Day ${dayNum}${reason ? ` (reason: ${reason})` : ""}...`,
-      });
+      // Check if research returned empty results - warn user
+      const hasResearchData = researchResults && researchResults.some(r => r.results?.length > 0);
+      if (!hasResearchData) {
+        emitter.emit({
+          type: "agent_thought",
+          timestamp: now(),
+          agentName: "PlanningAgent",
+          thought: `Planning Day ${dayNum} using general knowledge (no web search data available)...`,
+        });
+      } else {
+        emitter.emit({
+          type: "agent_thought",
+          timestamp: now(),
+          agentName: "PlanningAgent",
+          thought: `Planning Day ${dayNum}${reason ? ` (reason: ${reason})` : ""}...`,
+        });
+      }
 
       const userPrompt = this.buildDayPrompt(tripContext, dayNum, researchResults, existingItinerary, reason);
 
@@ -93,6 +104,17 @@ export class PlanningAgent implements Agent {
         } catch (err) {
           lastError = err instanceof Error ? err.message : "Unknown error";
           console.warn("[PlanningAgent]", { dayNum, attempt, error: lastError });
+
+          // Check if it's a 402 API error
+          if (lastError.includes("402")) {
+            emitter.emit({
+              type: "agent_thought",
+              timestamp: now(),
+              agentName: "PlanningAgent",
+              thought: "API quota exceeded. Please check your API key or try again later.",
+            });
+          }
+
           if (attempt === MAX_RETRIES) {
             // Return a fallback day on final failure
             parsedDay = {

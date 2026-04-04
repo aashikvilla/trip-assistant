@@ -16,6 +16,7 @@ const PLACEHOLDER_HEIGHTS = Array.from({ length: BARS }, (_, i) =>
 );
 
 function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
@@ -43,10 +44,13 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
 
   if (hasError) {
     return (
-      <div className="flex items-center gap-2 py-1 opacity-50">
+      <button
+        onClick={toggle}
+        className="flex items-center gap-2 py-1 opacity-60 hover:opacity-90 transition-opacity"
+      >
         <Mic className="h-4 w-4" />
-        <span className="text-xs">Voice message unavailable</span>
-      </div>
+        <span className="text-xs">Voice message unavailable — tap to retry</span>
+      </button>
     );
   }
 

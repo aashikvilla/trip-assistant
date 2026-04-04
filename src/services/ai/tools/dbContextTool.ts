@@ -84,7 +84,7 @@ export class DBContextTool implements Tool<DBContextInput, TripContext> {
     // Fetch members
     const { data: members } = await supabase
       .from("trip_members")
-      .select("profile_id, profiles(id, preferences, first_name, last_name)")
+      .select("profile_id, profiles:profiles!trip_members_profile_id_fkey(id, preferences, first_name, last_name)")
       .eq("trip_id", tripId)
       .eq("invitation_status", "accepted");
 
@@ -211,6 +211,7 @@ export class DBContextTool implements Tool<DBContextInput, TripContext> {
       trip: {
         id: trip.id,
         name: trip.name ?? "My Trip",
+        createdBy: trip.created_by,
         destinations,
         startDate,
         endDate,

@@ -245,7 +245,14 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
                       message={msg}
                       tripId={tripId}
                       onReaction={(reactionType) => handleReaction(msg.message_id, reactionType)}
-                      onReply={() => setReplyToMessage(msg.message_id)}
+                      onReply={() => {
+                        setReplyToMessage(msg.message_id);
+                        // Auto-scroll to input after selecting reply
+                        setTimeout(() => {
+                          inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          inputRef.current?.focus();
+                        }, 100);
+                      }}
                       onVote={votePoll}
                       onNudge={handleNudge}
                       showReactionPicker={showReactionPicker === msg.message_id}
@@ -254,6 +261,7 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
                           showReactionPicker === msg.message_id ? null : msg.message_id
                         )
                       }
+                      allMessages={messages}
                     />
                   </div>
                 ))
@@ -269,24 +277,40 @@ export const TripChat: React.FC<TripChatProps> = ({ tripId }) => {
           </div>
 
           {/* Reply Preview */}
-          {replyToMessage && (
-            <div className="sticky bottom-0 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 p-3 sm:p-4 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-3 text-sm text-blue-700">
-                <div className="p-1.5 bg-blue-100 rounded-lg">
-                  <Reply className="h-4 w-4" />
+          {replyToMessage && (() => {
+            const repliedMsg = messages.find(m => m.message_id === replyToMessage);
+            const previewName = repliedMsg?.author_name || 'someone';
+            const previewText = repliedMsg
+              ? repliedMsg.message_type === 'voice'
+                ? 'Voice message'
+                : repliedMsg.message_type === 'poll'
+                  ? repliedMsg.poll_data?.question || 'Poll'
+                  : repliedMsg.content.length > 60
+                    ? repliedMsg.content.slice(0, 60) + '...'
+                    : repliedMsg.content
+              : 'Message';
+            return (
+              <div className="sticky bottom-0 bg-gradient-to-r from-blue-50 to-indigo-50 border-t border-blue-200 p-3 sm:p-4 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3 text-sm text-blue-700 min-w-0 flex-1">
+                  <div className="p-1.5 bg-blue-100 rounded-lg flex-shrink-0">
+                    <Reply className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-xs">{previewName}</div>
+                    <div className="text-xs opacity-70 truncate">{previewText}</div>
+                  </div>
                 </div>
-                <span className="font-medium">Replying to message</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setReplyToMessage(null)}
+                  className="h-8 w-8 rounded-lg hover:bg-blue-100 text-blue-600 flex-shrink-0"
+                >
+                  ×
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setReplyToMessage(null)}
-                className="h-8 w-8 rounded-lg hover:bg-blue-100 text-blue-600"
-              >
-                ×
-              </Button>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Message Input */}
           <div className="sticky bottom-0 bg-gradient-to-r from-white via-blue-50/50 to-white border-t border-gray-200 p-4 shadow-lg backdrop-blur-sm z-10">

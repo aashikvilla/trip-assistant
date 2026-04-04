@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   // Load message history (last 10 @AI exchanges)
   const { data: historyMessages } = await supabase
     .from("trip_messages")
-    .select("content, message_type, user_id")
+    .select("content, message_type, author_id")
     .eq("trip_id", tripId)
     .in("message_type", ["user_message", "ai_response"])
     .order("created_at", { ascending: false })
@@ -112,7 +112,7 @@ Be concise, friendly, and helpful.`
           { role: "user", content: message },
         ];
 
-        const provider = createLLMProvider();
+        const provider = createLLMProvider("CHAT");
         let fullResponse = "";
 
         emitter.emit({
@@ -129,7 +129,7 @@ Be concise, friendly, and helpful.`
         // Persist AI response to trip_messages
         await supabase.from("trip_messages").insert({
           trip_id: tripId,
-          user_id: user.id,
+          author_id: user.id,
           content: fullResponse,
           message_type: "ai_response",
         });

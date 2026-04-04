@@ -16,6 +16,7 @@ export function useVoicePlayback(
 ): VoicePlaybackResult {
   const { activeMessageId, setActiveMessageId } = useVoicePlaybackContext();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const retryCountRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -23,10 +24,18 @@ export function useVoicePlayback(
 
   // Create audio element once
   useEffect(() => {
-    const audio = new Audio(audioUrl);
+    if (!audioUrl) {
+      setHasError(true);
+      return;
+    }
+
+    const audio = new Audio();
     audioRef.current = audio;
 
-    audio.onloadedmetadata = () => setDuration(audio.duration);
+    audio.onloadedmetadata = () => {
+      setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+      setHasError(false);
+    };
     audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
     audio.onended = () => {
       setIsPlaying(false);
@@ -34,13 +43,30 @@ export function useVoicePlayback(
       audio.currentTime = 0;
       setActiveMessageId(null);
     };
-    audio.onerror = () => setHasError(true);
+    audio.onerror = () => {
+      // Retry up to 2 times with a short delay
+      if (retryCountRef.current < 2) {
+        retryCountRef.current++;
+        setTimeout(() => {
+          audio.src = audioUrl;
+          audio.load();
+        }, 1000 * retryCountRef.current);
+      } else {
+        setHasError(true);
+      }
+    };
+
+    // Set crossOrigin for CORS and then load
+    audio.crossOrigin = 'anonymous';
+    audio.preload = 'metadata';
+    audio.src = audioUrl;
 
     return () => {
       audio.pause();
-      audio.src = '';
+      audio.removeAttribute('src');
+      audio.load(); // release resources
     };
-  }, [audioUrl]);
+  }, [audioUrl, setActiveMessageId]);
 
   // Pause when another message becomes active
   useEffect(() => {
@@ -58,6 +84,7 @@ export function useVoicePlayback(
       setIsPlaying(false);
     } else {
       setActiveMessageId(messageId);
+      setHasError(false);
       audio.play().then(() => setIsPlaying(true)).catch(() => setHasError(true));
     }
   }, [isPlaying, messageId, setActiveMessageId]);

@@ -121,7 +121,7 @@ export async function GET(request: Request) {
         jobId: job.id,
       });
 
-      const provider = createLLMProvider();
+      const provider = createLLMProvider("ITINERARY_PLANNING");
       const orchestrator = new Orchestrator(provider, emitter, abortController);
 
       try {

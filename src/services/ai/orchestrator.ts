@@ -41,7 +41,7 @@ export class Orchestrator {
     const supabase = getServiceClient();
     const { signal } = this.abortController;
 
-    // Install watchdog — mark jobs stuck in 'streaming' after 180s as failed
+    // Install watchdog — mark jobs stuck in 'streaming' after 5 min as failed
     const watchdogTimer = setTimeout(async () => {
       await supabase
         .from("itinerary_generation_jobs")
@@ -49,7 +49,7 @@ export class Orchestrator {
         .eq("id", jobId)
         .eq("status", "streaming");
       this.abortController.abort();
-    }, 180_000);
+    }, 300_000);
 
     const runStart = Date.now();
     try {
@@ -104,12 +104,10 @@ export class Orchestrator {
       );
       console.info("[Orchestrator]", { phase: "planning", jobId, tripId, durationMs: Date.now() - planningStart, success: planningResult.success });
 
-      if (signal.aborted) return;
-
       const itinerary = planningResult.data as ParsedItinerary;
 
-      // 4. Optional review phase
-      if (process.env.ENABLE_REVIEW_AGENT === "true") {
+      // 4. Optional review phase (skip if aborted — always persist what we have)
+      if (!signal.aborted && process.env.ENABLE_REVIEW_AGENT === "true") {
         this.emitter.emit({
           type: "agent_handoff",
           timestamp: now(),
@@ -124,11 +122,12 @@ export class Orchestrator {
         );
       }
 
-      if (signal.aborted) return;
-
-      // 5. Persist to Supabase
+      // 5. Always persist whatever days were generated (even if aborted mid-way)
+      if (itinerary.days.length === 0) {
+        throw new Error("No itinerary days were generated — all LLM calls failed");
+      }
       emitLog("Orchestrator", "Persisting itinerary to database...", this.emitter);
-      await this.persistItinerary(tripId, jobId, itinerary, tripContext, supabase);
+      await this.persistItinerary(tripId, jobId, itinerary, tripContext.trip.createdBy, supabase);
 
       // 6. Emit completion
       this.emitter.emit({
@@ -143,13 +142,13 @@ export class Orchestrator {
       clearTimeout(watchdogTimer);
 
       const message = err instanceof Error ? err.message : "Unknown error";
-      const recoverable = !(err instanceof TripNotFoundError);
 
+      // All orchestrator-level errors are non-recoverable — the stream is done
       this.emitter.emit({
         type: "error",
         timestamp: now(),
         message,
-        recoverable,
+        recoverable: false,
       });
 
       const isLLMError = err instanceof LLMProviderError;
@@ -180,7 +179,7 @@ export class Orchestrator {
     tripId: string,
     jobId: string,
     itinerary: ParsedItinerary,
-    tripContext: TripContext,
+    createdBy: string,
     supabase: ReturnType<typeof getServiceClient>,
   ): Promise<void> {
     // Delete old AI-generated items
@@ -205,7 +204,7 @@ export class Orchestrator {
           for (const activity of activities) {
             items.push({
               trip_id: tripId,
-              created_by: null,
+              created_by: createdBy,
               type: "activity",
               title: activity,
               activity_description: activity,
@@ -220,7 +219,7 @@ export class Orchestrator {
         if (meal) {
           items.push({
             trip_id: tripId,
-            created_by: null,
+            created_by: createdBy,
             type: "activity",
             title: meal,
             activity_description: meal,

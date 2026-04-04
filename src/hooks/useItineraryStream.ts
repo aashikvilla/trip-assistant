@@ -105,14 +105,20 @@ export function useItineraryStream(): UseItineraryStreamReturn {
     };
 
     es.onerror = () => {
-      if (es.readyState === EventSource.CLOSED) {
-        // Use ref to avoid stale closure
-        if (statusRef.current !== "complete") {
-          setStatus("error");
-          setError("Connection lost");
-        }
+      // When server closes the stream, EventSource tries to reconnect
+      // (readyState = CONNECTING). We must close it to prevent infinite reconnects.
+      const currentStatus = statusRef.current;
+      if (currentStatus === "complete" || currentStatus === "error") {
+        // Already handled via onmessage — just clean up
+        es.close();
         eventSourceRef.current = null;
+        return;
       }
+      // Server dropped connection unexpectedly
+      es.close();
+      eventSourceRef.current = null;
+      setStatus("error");
+      setError("Connection lost");
     };
   }, []);
 

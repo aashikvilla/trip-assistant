@@ -53,6 +53,7 @@ interface ChatMessageProps {
   onNudge?: (pollId: string) => Promise<void>;
   showReactionPicker: boolean;
   onToggleReactionPicker: () => void;
+  allMessages?: ChatMessageType[];
 };
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -63,7 +64,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   onVote,
   onNudge,
   showReactionPicker,
-  onToggleReactionPicker
+  onToggleReactionPicker,
+  allMessages = [],
 }) => {
   const { user } = useAuth();
   const isOwnMessage = user?.id === message.author_id;
@@ -171,16 +173,32 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               />
             </div>
           )}
-          {message.reply_to_id && (
-            <div className={`mb-3 p-3 rounded-xl text-xs border-l-4 ${
-              isOwnMessage 
-                ? 'bg-blue-700/30 border-blue-300 text-blue-100' 
-                : 'bg-blue-50 border-blue-300 text-blue-700'
-            }`}>
-              <Reply className="h-3 w-3 inline mr-2" />
-              Replying to a message
-            </div>
-          )}
+          {message.reply_to_id && (() => {
+            const repliedMsg = allMessages.find(m => m.message_id === message.reply_to_id);
+            const previewName = repliedMsg?.author_name || 'someone';
+            const previewText = repliedMsg
+              ? repliedMsg.message_type === 'voice'
+                ? 'Voice message'
+                : repliedMsg.message_type === 'poll'
+                  ? repliedMsg.poll_data?.question || 'Poll'
+                  : repliedMsg.content.length > 80
+                    ? repliedMsg.content.slice(0, 80) + '...'
+                    : repliedMsg.content
+              : 'Deleted message';
+            return (
+              <div className={`mb-3 p-2.5 rounded-xl text-xs border-l-4 ${
+                isOwnMessage
+                  ? 'bg-blue-700/30 border-blue-300 text-blue-100'
+                  : 'bg-blue-50 border-blue-300 text-blue-700'
+              }`}>
+                <div className="font-semibold mb-0.5 flex items-center gap-1">
+                  <Reply className="h-3 w-3" />
+                  {previewName}
+                </div>
+                <p className="opacity-80 truncate">{previewText}</p>
+              </div>
+            );
+          })()}
           
           <div className="space-y-2">
             {message.message_type === 'voice' && message.metadata ? (
@@ -260,7 +278,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         
         {/* Reaction Picker */}
         {showReactionPicker && (
-          <div className="relative">
+          <div className={`relative ${isOwnMessage ? 'self-end' : 'self-start'}`}>
             <ReactionPicker
               onReaction={onReaction}
               onClose={onToggleReactionPicker}

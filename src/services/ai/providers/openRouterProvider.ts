@@ -5,10 +5,25 @@ import type { LLMProvider } from "./index";
 export class OpenRouterProvider implements LLMProvider {
   private apiKey: string;
   private model: string;
+  private useWebSearch: boolean;
 
-  constructor() {
+  constructor(modelOverride?: string) {
     this.apiKey = process.env.OPENROUTER_API_KEY || "";
-    this.model = process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet";
+
+    if (modelOverride) {
+      // Use provided model directly
+      this.useWebSearch = modelOverride.toLowerCase().includes(":online");
+      this.model = this.useWebSearch
+        ? modelOverride.replace(/:online$/i, "")
+        : modelOverride;
+    } else {
+      // Fall back to env var
+      const modelConfig = process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet";
+      this.useWebSearch = modelConfig.toLowerCase().includes(":online");
+      this.model = this.useWebSearch
+        ? modelConfig.replace(/:online$/i, "")
+        : modelConfig;
+    }
   }
 
   async *streamChat(
@@ -32,31 +47,58 @@ export class OpenRouterProvider implements LLMProvider {
       temperature: 0.7,
     };
 
+    // Enable web search plugin if configured
+    if (this.useWebSearch) {
+      body.plugins = [
+        {
+          id: "web",
+          max_results: 5,
+          engine: "native",
+        },
+      ];
+    }
+
     if (systemMessages.length > 0) {
       body.system = systemMessages.map((m) => m.content).join("\n");
     }
 
-    const fetchStart = Date.now();
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-        "X-Title": "Vibe Trip",
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
+    const MAX_RETRIES = 2;
+    let response: Response | undefined;
 
-    console.info("[OpenRouterProvider]", { model: this.model, messageCount: messages.length, status: response.status, latencyMs: Date.now() - fetchStart });
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (signal?.aborted) throw new LLMProviderError("openrouter", 0, "Aborted");
 
-    if (!response.ok) {
-      const raw = await response.text();
-      throw new LLMProviderError("openrouter", response.status, raw);
+      const fetchStart = Date.now();
+      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          "X-Title": "Vibe Trip",
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+
+      console.info("[OpenRouterProvider]", { model: this.model, webSearch: this.useWebSearch, messageCount: messages.length, status: response.status, latencyMs: Date.now() - fetchStart, attempt });
+
+      if (response.status === 429 && attempt < MAX_RETRIES) {
+        const delay = (attempt + 1) * 3000;
+        console.warn("[OpenRouterProvider] Rate limited (429), retrying in", delay, "ms");
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      break;
     }
 
-    const reader = response.body?.getReader();
+    if (!response!.ok) {
+      const raw = await response!.text();
+      throw new LLMProviderError("openrouter", response!.status, raw);
+    }
+
+    const reader = response!.body?.getReader();
     if (!reader) return;
 
     const decoder = new TextDecoder();

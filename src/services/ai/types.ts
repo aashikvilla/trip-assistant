@@ -97,6 +97,7 @@ export interface TripContext {
   trip: {
     id: string;
     name: string;
+    createdBy: string;
     destinations: string[];
     startDate: string;
     endDate: string;
