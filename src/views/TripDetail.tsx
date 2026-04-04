@@ -502,8 +502,23 @@ const TripDetail = () => {
                 {format(new Date(trip.end_date), "MMM d, yyyy")} */}
               </p>
             </div>
-            <div className="flex-shrink-0">
-              <Button variant="outline" onClick={() => setShowEditDialog(true)}>
+            <div className="flex-shrink-0 flex items-center gap-1">
+              {/* Icon-only on mobile, text visible on desktop */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEditDialog(true)}
+                className="md:hidden h-9 w-9 p-0"
+                title="Edit Trip"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEditDialog(true)}
+                className="hidden md:flex"
+              >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Trip
               </Button>
@@ -513,8 +528,30 @@ const TripDetail = () => {
       </header>
 
       {/* Trip Stats */}
-      <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-blue-50">
-        <div className="flex items-center justify-between">
+      <div className="px-4 py-2 bg-gradient-to-r from-green-50 to-blue-50 border-b border-green-100/50">
+        {/* Mobile: compact 3-column stat layout */}
+        <div className="flex md:hidden items-center justify-between text-center">
+          <div className="flex-1">
+            <div className="text-base font-bold text-gray-800">{trip.trip_members?.length || 0}</div>
+            <div className="text-[10px] text-muted-foreground leading-none">Members</div>
+          </div>
+          <div className="w-px h-8 bg-gray-200" />
+          <div className="flex-1">
+            <div className="text-base font-bold text-gray-800">{trip.itinerary_items?.length || 0}</div>
+            <div className="text-[10px] text-muted-foreground leading-none">Activities</div>
+          </div>
+          <div className="w-px h-8 bg-gray-200" />
+          <div className="flex-1">
+            <div className="text-base font-bold text-gray-800">
+              {trip.start_date ? format(new Date(trip.start_date), "MMM d") : "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground leading-none">
+              {trip.end_date ? `→ ${format(new Date(trip.end_date), "MMM d")}` : "No dates"}
+            </div>
+          </div>
+        </div>
+        {/* Desktop: original pill layout */}
+        <div className="hidden md:flex items-center justify-between">
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2 bg-white/70 px-3 py-1.5 rounded-full">
               <Users className="h-4 w-4 text-green-600" />
@@ -526,8 +563,8 @@ const TripDetail = () => {
             </div>
           </div>
           <div className="text-sm font-medium text-gray-700 bg-white/70 px-3 py-1.5 rounded-full">
-            {format(new Date(trip.start_date), "MMM d")} -{" "}
-            {format(new Date(trip.end_date), "MMM d, yyyy")}
+            {trip.start_date ? format(new Date(trip.start_date), "MMM d") : "—"}{" "}
+            {trip.end_date ? `- ${format(new Date(trip.end_date), "MMM d, yyyy")}` : ""}
           </div>
         </div>
       </div>
@@ -541,42 +578,43 @@ const TripDetail = () => {
           className="flex-1 flex flex-col h-full overflow-hidden"
           defaultValue="itinerary"
         >
-          <div className="bg-white border-b shadow-sm">
-            <TabsList className="w-full justify-between sm:justify-start overflow-x-auto px-4 py-2 h-auto bg-gradient-to-r from-gray-50 to-gray-100 gap-1 rounded-none border-0">
+          {/* Top tabs — desktop only; mobile uses bottom nav */}
+          <div className="hidden md:block bg-white border-b shadow-sm">
+            <TabsList className="w-full justify-start overflow-x-auto px-4 py-2 h-auto bg-gradient-to-r from-gray-50 to-gray-100 gap-1 rounded-none border-0">
               <TabsTrigger
                 value="itinerary"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 hover:bg-white/50"
+                className="px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 hover:bg-white/50"
               >
-                <CalendarRange className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Itinerary</span>
+                <CalendarRange className="h-5 w-5 mr-2" />
+                Itinerary
               </TabsTrigger>
               <TabsTrigger
                 value="chat"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50"
+                className="px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50"
               >
-                        <MessageSquare className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Chat</span>
+                <MessageSquare className="h-5 w-5 mr-2" />
+                Chat
               </TabsTrigger>
               <TabsTrigger
                 value="bookings"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 hover:bg-white/50"
+                className="px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 hover:bg-white/50"
               >
-                <Hotel className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Bookings</span>
+                <Hotel className="h-5 w-5 mr-2" />
+                Bookings
               </TabsTrigger>
               <TabsTrigger
                 value="expenses"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-orange-200 hover:bg-white/50"
+                className="px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-orange-200 hover:bg-white/50"
               >
-                <DollarSign className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Expenses</span>
+                <DollarSign className="h-5 w-5 mr-2" />
+                Expenses
               </TabsTrigger>
               <TabsTrigger
                 value="members"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-indigo-200 hover:bg-white/50"
+                className="px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-indigo-200 hover:bg-white/50"
               >
-                <Users className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Members</span>
+                <Users className="h-5 w-5 mr-2" />
+                Members
               </TabsTrigger>
             </TabsList>
           </div>
@@ -777,6 +815,7 @@ const TripDetail = () => {
           <TabsContent value="chat" className="p-0 overflow-y-auto h-full pb-16 md:pb-0">
             <TripChat tripId={trip.id} />
           </TabsContent>
+
 
           <TabsContent
             value="bookings"
@@ -1001,10 +1040,10 @@ const TripDetail = () => {
         )}
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation — polls are embedded in chat */}
       <MobileBottomNav
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+        activeTab={activeTab === "chat" ? activeTab : activeTab}
+        onTabChange={(tab) => setActiveTab(tab === "polls" ? "chat" : tab)}
       />
     </div>
   );

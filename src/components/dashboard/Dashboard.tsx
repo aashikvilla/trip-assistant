@@ -23,7 +23,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-3 md:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
@@ -31,17 +31,18 @@ const Dashboard = () => {
               </div>
               <span className="text-xl font-bold">Vibe Trip</span>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm" asChild>
+
+            <div className="flex items-center space-x-2 md:space-x-4">
+              {/* Icon-only on mobile, labeled on desktop */}
+              <Button variant="outline" size="sm" asChild className="h-9 w-9 p-0 md:w-auto md:px-3" title="Settings">
                 <Link href="/settings">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden md:inline md:ml-2">Settings</span>
                 </Link>
               </Button>
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+              <Button variant="ghost" size="sm" onClick={signOut} className="h-9 w-9 p-0 md:w-auto md:px-3" title="Sign Out">
+                <LogOut className="h-4 w-4" />
+                <span className="hidden md:inline md:ml-2">Sign Out</span>
               </Button>
             </div>
           </div>
@@ -49,59 +50,60 @@ const Dashboard = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+      <main className="container mx-auto px-4 py-4 md:py-8">
+        <div className="flex items-center justify-between mb-4 md:mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Trips</h1>
-            <p className="text-muted-foreground">Plan and manage your adventures</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Trips</h1>
+            <p className="text-sm text-muted-foreground">Plan and manage your adventures</p>
           </div>
-          
+
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowJoinTrip(true)} className="gap-2">
+            {/* Icon-only on mobile, labeled on desktop */}
+            <Button variant="outline" onClick={() => setShowJoinTrip(true)} className="h-9 w-9 p-0 md:w-auto md:px-4 md:gap-2" title="Join Trip">
               <Users className="h-4 w-4" />
-              Join Trip
+              <span className="hidden md:inline">Join Trip</span>
             </Button>
-            <Button onClick={() => setShowCreateTrip(true)} className="gap-2">
+            <Button onClick={() => setShowCreateTrip(true)} className="h-9 w-9 p-0 md:w-auto md:px-4 md:gap-2" title="New Trip">
               <Plus className="h-4 w-4" />
-              New Trip
+              <span className="hidden md:inline">New Trip</span>
             </Button>
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Upcoming Trips</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+        {/* Quick Stats — 3-col on mobile, 3-col on desktop */}
+        <div className="grid grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-8">
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3 md:pb-2 md:pt-4 md:px-6">
+              <CardTitle className="text-xs md:text-sm font-medium">Upcoming</CardTitle>
+              <Calendar className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.upcomingTripsCount ?? '—'}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.nextTripDays != null ? `Next trip in ${stats.nextTripDays} days` : 'No upcoming trips'}
+            <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+              <div className="text-xl md:text-2xl font-bold">{stats?.upcomingTripsCount ?? '—'}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">
+                {stats?.nextTripDays != null ? `In ${stats.nextTripDays}d` : 'None'}
               </p>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Places Visited</CardTitle>
-              <MapPin className="h-4 w-4 text-muted-foreground" />
+
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3 md:pb-2 md:pt-4 md:px-6">
+              <CardTitle className="text-xs md:text-sm font-medium">Places</CardTitle>
+              <MapPin className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.placesVisitedCount ?? '—'}</div>
-              <p className="text-xs text-muted-foreground">Total activities across your trips</p>
+            <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+              <div className="text-xl md:text-2xl font-bold">{stats?.placesVisitedCount ?? '—'}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Activities</p>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Travel Buddies</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+
+          <Card className="p-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-3 md:pb-2 md:pt-4 md:px-6">
+              <CardTitle className="text-xs md:text-sm font-medium">Buddies</CardTitle>
+              <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.travelBuddiesCount ?? '—'}</div>
-              <p className="text-xs text-muted-foreground">Active connections</p>
+            <CardContent className="px-3 pb-3 md:px-6 md:pb-6">
+              <div className="text-xl md:text-2xl font-bold">{stats?.travelBuddiesCount ?? '—'}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground leading-tight">Connections</p>
             </CardContent>
           </Card>
         </div>

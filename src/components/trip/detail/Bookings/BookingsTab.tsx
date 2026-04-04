@@ -57,10 +57,16 @@ export const BookingsTab: React.FC<BookingsTabProps> = ({ tripId }) => {
     <>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Bookings</h2>
-          <Button size="sm" onClick={() => setShowDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Booking
+          <h2 className="text-xl md:text-2xl font-semibold">Bookings</h2>
+          {/* Icon-only on mobile, labeled on desktop */}
+          <Button
+            size="sm"
+            onClick={() => setShowDialog(true)}
+            className="h-9 w-9 p-0 md:w-auto md:px-3"
+            title="Add Booking"
+          >
+            <Plus className="h-4 w-4 flex-shrink-0" />
+            <span className="hidden md:inline md:ml-2">Add Booking</span>
           </Button>
         </div>
         
