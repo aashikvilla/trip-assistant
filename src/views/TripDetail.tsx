@@ -478,59 +478,55 @@ const TripDetail = () => {
           {offlineData ? "Viewing cached data — changes will sync when online" : "You're offline"}
         </div>
       )}
-      {/* Main Header */}
+      {/* Trip Header */}
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="px-4 py-2">
-          <div className="flex items-center gap-2">
+        <div className="px-4 sm:px-6 py-3">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            {/* Back */}
             {isStandalone ? (
-              <Button variant="ghost" size="sm" onClick={() => window.history.back()} className="p-2">
-                <ArrowLeft className="h-5 w-5" />
+              <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="shrink-0 -ml-1">
+                <ArrowLeft className="h-4 w-4" />
               </Button>
             ) : (
-              <Button variant="ghost" size="sm" asChild className="p-2">
-                <Link href="/dashboard">
-                  <ArrowLeft className="h-5 w-5" />
-                </Link>
+              <Button variant="ghost" size="icon" asChild className="shrink-0 -ml-1">
+                <Link href="/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
               </Button>
             )}
+
+            {/* Trip name + meta */}
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-semibold truncate">{trip.name}</h1>
-              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
-                {trip.destination_main}
-                {/* {format(new Date(trip.start_date), "MMM d")} -{" "}
-                {format(new Date(trip.end_date), "MMM d, yyyy")} */}
-              </p>
+              <h1 className="text-base sm:text-lg font-semibold leading-tight truncate">{trip.name}</h1>
+              <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                {trip.destination_main && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3" />{trip.destination_main}
+                  </span>
+                )}
+                {trip.start_date && trip.end_date && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    {format(new Date(trip.start_date), "MMM d")} – {format(new Date(trip.end_date), "MMM d, yyyy")}
+                  </span>
+                )}
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Users className="h-3 w-3" />{trip.trip_members?.length || 0} members
+                </span>
+              </div>
             </div>
-            <div className="flex-shrink-0">
-              <Button variant="outline" onClick={() => setShowEditDialog(true)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Trip
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setShowInviteDialog(true)} className="hidden sm:flex">
+                <Users className="h-3.5 w-3.5 mr-1.5" />Invite
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowEditDialog(true)}>
+                <Edit className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Edit Trip</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
-
-      {/* Trip Stats */}
-      <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-blue-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2 bg-white/70 px-3 py-1.5 rounded-full">
-              <Users className="h-4 w-4 text-green-600" />
-              <span className="font-medium">{trip.trip_members?.length || 0} Members</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/70 px-3 py-1.5 rounded-full">
-              <Calendar className="h-4 w-4 text-blue-600" />
-              <span className="font-medium">{trip.itinerary_items?.length || 0} Activities</span>
-            </div>
-          </div>
-          <div className="text-sm font-medium text-gray-700 bg-white/70 px-3 py-1.5 rounded-full">
-            {format(new Date(trip.start_date), "MMM d")} -{" "}
-            {format(new Date(trip.end_date), "MMM d, yyyy")}
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
       <div ref={contentRef} className="flex-1 flex flex-col h-[calc(100vh-8rem)] sm:h-[calc(100vh-9rem)] overflow-hidden">
@@ -541,52 +537,40 @@ const TripDetail = () => {
           className="flex-1 flex flex-col h-full overflow-hidden"
           defaultValue="itinerary"
         >
-          <div className="bg-white border-b shadow-sm">
-            <TabsList className="w-full justify-between sm:justify-start overflow-x-auto px-4 py-2 h-auto bg-gradient-to-r from-gray-50 to-gray-100 gap-1 rounded-none border-0">
-              <TabsTrigger
-                value="itinerary"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-green-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 hover:bg-white/50"
-              >
-                <CalendarRange className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Itinerary</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="chat"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 hover:bg-white/50"
-              >
-                        <MessageSquare className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Chat</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="bookings"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 hover:bg-white/50"
-              >
-                <Hotel className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Bookings</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="expenses"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-orange-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-orange-200 hover:bg-white/50"
-              >
-                <DollarSign className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Expenses</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="members"
-                className="flex-1 sm:flex-initial px-4 py-3 text-sm font-medium h-auto rounded-lg transition-all duration-200 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-indigo-200 hover:bg-white/50"
-              >
-                <Users className="h-5 w-5 sm:mr-2" />
-                <span className="hidden sm:inline">Members</span>
-              </TabsTrigger>
+          <div className="border-b bg-background">
+            <TabsList className="h-auto bg-transparent rounded-none p-0 px-4 sm:px-6 gap-0 w-full justify-start overflow-x-auto">
+              {(
+                [
+                  { value: "itinerary", icon: CalendarRange, label: "Itinerary" },
+                  { value: "chat",      icon: MessageSquare,  label: "Chat" },
+                  { value: "bookings",  icon: Hotel,          label: "Bookings" },
+                  { value: "expenses",  icon: DollarSign,     label: "Expenses" },
+                  { value: "members",   icon: Users,          label: "Members" },
+                ] as const
+              ).map(({ value, icon: Icon, label }) => (
+                <TabsTrigger
+                  key={value}
+                  value={value}
+                  className="relative h-11 px-4 rounded-none border-0 bg-transparent text-sm font-medium text-muted-foreground shadow-none
+                    data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent
+                    after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-primary after:opacity-0
+                    data-[state=active]:after:opacity-100
+                    hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  <Icon className="h-4 w-4 mr-2 shrink-0" />
+                  {label}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </div>
 
-          <TabsContent value="itinerary" className="space-y-4 p-4 overflow-y-auto h-full pb-24 md:pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h3 className="text-lg font-semibold">Trip Itinerary</h3>
-              <div className="flex flex-wrap items-center gap-2">
+          <TabsContent value="itinerary" className="space-y-4 p-4 sm:p-6 overflow-y-auto h-full pb-24 md:pb-6">
+            <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between gap-2">
+              <OfflineStorageInfo tripId={trip.id} />
+              <div className="flex items-center gap-2 ml-auto">
                 <DownloadTripButton tripId={trip.id} />
-                {(trip.ai_itinerary_data || (trip.itinerary_items && trip.itinerary_items.length > 0)) ? (
+                {(trip.ai_itinerary_data || (trip.itinerary_items && trip.itinerary_items.length > 0)) && (
                   <>
                     <Button
                       size="sm"
@@ -595,11 +579,11 @@ const TripDetail = () => {
                       disabled={isGenerating}
                     >
                       {isGenerating ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
                       ) : (
-                        <Sparkles className="h-4 w-4 mr-2" />
+                        <Sparkles className="h-4 w-4 mr-1.5" />
                       )}
-                      Regenerate AI Itinerary
+                      Regenerate
                     </Button>
                     <Button
                       size="sm"
@@ -608,14 +592,13 @@ const TripDetail = () => {
                         setShowItemDialog(true);
                       }}
                     >
-                      <Plus className="h-4 w-4 mr-2" />
+                      <Plus className="h-4 w-4 mr-1.5" />
                       Add Activity
                     </Button>
                   </>
-                ) : null}
+                )}
               </div>
             </div>
-            <OfflineStorageInfo tripId={trip.id} />
             {/* AI Streaming / Generation Panel */}
             {isGenerating && (() => {
               const totalDays = trip.start_date && trip.end_date
@@ -772,6 +755,7 @@ const TripDetail = () => {
                   }}
                 />
               )}
+            </div>
           </TabsContent>
 
           <TabsContent value="chat" className="p-0 overflow-y-auto h-full pb-16 md:pb-0">
@@ -796,17 +780,20 @@ const TripDetail = () => {
 
           <TabsContent value="members" className="h-full">
             <div className="h-full flex flex-col">
-              <div className="p-4 border-b flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Trip Members</h3>
+              <div className="p-4 sm:px-6 border-b flex-shrink-0">
+                <div className="max-w-7xl mx-auto flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-semibold">Members</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{trip.trip_members?.length || 0} people on this trip</p>
+                  </div>
                   <Button size="sm" onClick={() => setShowInviteDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Invite Member
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    Invite
                   </Button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-3 max-w-3xl mx-auto w-full">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <div className="space-y-2 max-w-2xl w-full">
                   {trip.trip_members?.map(
                     (
                       member: TripMember & Record<string, unknown>,

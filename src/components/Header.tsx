@@ -12,13 +12,13 @@ const Header = () => {
     <header className="fixed top-0 w-full z-50 bg-white/95 backdrop-blur-md shadow-soft">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center space-x-2">
+          {/* Logo - Consistent across all pages */}
+          <Link href="/" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-hero rounded-lg flex items-center justify-center">
               <Plane className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold text-foreground">Vibe Trip</span>
-          </div>
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
@@ -59,29 +59,29 @@ const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-border/50">
             <nav className="flex flex-col space-y-4">
-              <a 
-                href="#features" 
+              <a
+                href="#features"
                 className="text-foreground hover:text-primary transition-colors py-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Features
               </a>
-              <a 
-                href="#how-it-works" 
+              <a
+                href="#how-it-works"
                 className="text-foreground hover:text-primary transition-colors py-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 How It Works
               </a>
-              <a 
-                href="#pricing" 
+              <a
+                href="#pricing"
                 className="text-foreground hover:text-primary transition-colors py-2"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Pricing
               </a>
-              <a 
-                href="#contact" 
+              <a
+                href="#contact"
                 className="text-foreground hover:text-primary transition-colors py-2"
                 onClick={() => setIsMenuOpen(false)}
               >

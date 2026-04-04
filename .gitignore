@@ -32,3 +32,4 @@ dist-ssr
 *.sw?
 .bolt/
 tsconfig.tsbuildinfo
+.vercel
