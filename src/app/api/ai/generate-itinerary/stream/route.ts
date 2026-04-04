@@ -5,6 +5,9 @@ import { createLLMProvider } from "@/services/ai/providers";
 import { Orchestrator } from "@/services/ai/orchestrator";
 import type { StreamEmitter, StreamEvent } from "@/services/ai/types";
 
+// Vercel Hobby max is 60s; Pro supports up to 300s.
+export const maxDuration = 60;
+
 function getServiceClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

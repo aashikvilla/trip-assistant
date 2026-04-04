@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Brain, Search, ArrowRight } from "lucide-react";
+import { ChevronDown, ChevronUp, Brain, Search, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { StreamEvent } from "@/services/ai/types";
 
@@ -18,6 +18,103 @@ interface ThoughtEntry {
   timestamp: string;
 }
 
+// ── Friendly message helpers ────────────────────────────────────────────────
+
+function friendlyAgentName(raw: string): string {
+  if (raw.includes("Research")) return "Research";
+  if (raw.includes("Planning")) return "Planning";
+  if (raw.includes("Review")) return "Review";
+  if (raw.includes("Orchestrator")) return "Coordinator";
+  return "AI";
+}
+
+function friendlyHandoff(toAgent: string): string {
+  if (toAgent.includes("Research")) return "Researching your destinations...";
+  if (toAgent.includes("Planning")) return "Building your day-by-day itinerary...";
+  if (toAgent.includes("Review")) return "Reviewing itinerary against your preferences...";
+  return "Preparing next step...";
+}
+
+function friendlyThought(thought: string): string {
+  if (thought.includes("Loading trip context")) return "Loading your trip details...";
+  if (thought.includes("Persisting itinerary")) return "Saving your itinerary...";
+  if (thought.includes("Sending notifications")) return "Notifying your travel group...";
+  if (thought.includes("Research complete")) return "Destination research complete ✓";
+  if (thought.includes("Itinerary planning complete")) return "All days planned ✓";
+  if (thought.includes("No web search data")) return "Using curated knowledge for planning...";
+  if (thought.includes("Analyzing trip details")) return "Analysing your trip preferences...";
+  const dayMatch = thought.match(/Planning Day (\d+)/);
+  if (dayMatch) return `Planning Day ${dayMatch[1]}...`;
+  const researchMatch = thought.match(/Researching (.+?) \(/);
+  if (researchMatch) return `Researching ${researchMatch[1]}...`;
+  return thought;
+}
+
+function friendlySearch(query: string): string {
+  const q = query.toLowerCase();
+  if (q.includes("restaurant") || q.includes("dining") || q.includes("cuisine") || q.includes("food")) {
+    return "Searching for restaurants and local cuisine...";
+  }
+  if (q.includes("attraction") || q.includes("sightseeing") || q.includes("must-see")) {
+    return "Searching for top attractions and landmarks...";
+  }
+  if (q.includes("transport") || q.includes("getting around") || q.includes("customs")) {
+    return "Researching local transport and travel tips...";
+  }
+  if (q.includes("activit") || q.includes("experience") || q.includes("things to do")) {
+    return "Finding activities that match your interests...";
+  }
+  return "Searching for travel information...";
+}
+
+function friendlyToolResult(success: boolean, summary: string): string {
+  if (!success) return "Search unavailable — using curated knowledge instead";
+  // "Found 5 attractions results for "Paris"" → "Found information about Paris"
+  const destMatch = summary.match(/for "([^"]+)"/);
+  const dest = destMatch ? destMatch[1] : null;
+  if (dest) return `Found useful information about ${dest} ✓`;
+  return summary;
+}
+
+// ── Event → ThoughtEntry transformation ────────────────────────────────────
+
+function processEvents(events: StreamEvent[]): { thoughts: ThoughtEntry[]; currentAgent: string } {
+  const thoughts: ThoughtEntry[] = [];
+  let currentAgent = "AI";
+
+  for (const event of events) {
+    if (event.type === "agent_handoff") {
+      currentAgent = friendlyAgentName(event.toAgent);
+      thoughts.push({
+        agentName: "Coordinator",
+        thought: friendlyHandoff(event.toAgent),
+        timestamp: event.timestamp,
+      });
+    } else if (event.type === "agent_thought") {
+      currentAgent = friendlyAgentName(event.agentName);
+      const thought = friendlyThought(event.thought);
+      thoughts.push({ agentName: currentAgent, thought, timestamp: event.timestamp });
+    } else if (event.type === "tool_call" && event.toolName === "web_search") {
+      const query = (event.input as { query?: string })?.query ?? "";
+      thoughts.push({
+        agentName: currentAgent,
+        thought: friendlySearch(query),
+        timestamp: event.timestamp,
+      });
+    } else if (event.type === "tool_result" && event.toolName === "web_search") {
+      thoughts.push({
+        agentName: currentAgent,
+        thought: friendlyToolResult(event.success, event.summary),
+        timestamp: event.timestamp,
+      });
+    }
+  }
+
+  return { thoughts, currentAgent };
+}
+
+// ── Component ───────────────────────────────────────────────────────────────
+
 export const StreamingThinkingPanel: React.FC<StreamingThinkingPanelProps> = ({
   events,
   isComplete,
@@ -29,39 +126,7 @@ export const StreamingThinkingPanel: React.FC<StreamingThinkingPanelProps> = ({
   const timelineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const newThoughts: ThoughtEntry[] = [];
-    let agent = "AI";
-
-    for (const event of events) {
-      if (event.type === "agent_thought") {
-        newThoughts.push({
-          agentName: event.agentName,
-          thought: event.thought,
-          timestamp: event.timestamp,
-        });
-        agent = event.agentName;
-      } else if (event.type === "agent_handoff") {
-        agent = event.toAgent;
-        newThoughts.push({
-          agentName: "Orchestrator",
-          thought: `Handing off to ${event.toAgent}: ${event.task}`,
-          timestamp: event.timestamp,
-        });
-      } else if (event.type === "tool_call") {
-        newThoughts.push({
-          agentName: agent,
-          thought: `Using ${event.toolName}...`,
-          timestamp: event.timestamp,
-        });
-      } else if (event.type === "tool_result") {
-        newThoughts.push({
-          agentName: agent,
-          thought: event.summary,
-          timestamp: event.timestamp,
-        });
-      }
-    }
-
+    const { thoughts: newThoughts, currentAgent: agent } = processEvents(events);
     setCurrentAgent(agent);
     setThoughts(newThoughts);
     setLatestThought(newThoughts[newThoughts.length - 1] ?? null);
@@ -69,9 +134,7 @@ export const StreamingThinkingPanel: React.FC<StreamingThinkingPanelProps> = ({
 
   // Collapse on completion
   useEffect(() => {
-    if (isComplete) {
-      setIsExpanded(false);
-    }
+    if (isComplete) setIsExpanded(false);
   }, [isComplete]);
 
   // Auto-scroll timeline
@@ -84,18 +147,29 @@ export const StreamingThinkingPanel: React.FC<StreamingThinkingPanelProps> = ({
   if (isComplete && thoughts.length === 0) return null;
 
   const getAgentIcon = (agentName: string) => {
-    if (agentName.includes("Research")) return <Search className="h-3 w-3" />;
-    if (agentName.includes("Planning")) return <Brain className="h-3 w-3" />;
-    if (agentName.includes("Orchestrator")) return <ArrowRight className="h-3 w-3" />;
-    return <Brain className="h-3 w-3" />;
+    if (agentName === "Research") return <Search className="h-3 w-3" />;
+    if (agentName === "Planning") return <Brain className="h-3 w-3" />;
+    if (agentName === "Coordinator") return <ArrowRight className="h-3 w-3" />;
+    return <Sparkles className="h-3 w-3" />;
   };
 
   const getAgentColor = (agentName: string): string => {
-    if (agentName.includes("Research")) return "bg-blue-100 text-blue-800";
-    if (agentName.includes("Planning")) return "bg-purple-100 text-purple-800";
-    if (agentName.includes("Review")) return "bg-green-100 text-green-800";
+    if (agentName === "Research") return "bg-blue-100 text-blue-800";
+    if (agentName === "Planning") return "bg-purple-100 text-purple-800";
+    if (agentName === "Review") return "bg-green-100 text-green-800";
+    if (agentName === "Coordinator") return "bg-orange-100 text-orange-800";
     return "bg-gray-100 text-gray-800";
   };
+
+  const stageLabel = isComplete
+    ? "Planning complete"
+    : currentAgent === "Research"
+    ? "Researching destinations"
+    : currentAgent === "Planning"
+    ? "Building itinerary"
+    : currentAgent === "Review"
+    ? "Reviewing preferences"
+    : "AI is planning your trip";
 
   return (
     <Card className="border-dashed border-primary/30 bg-primary/5">
@@ -106,9 +180,7 @@ export const StreamingThinkingPanel: React.FC<StreamingThinkingPanelProps> = ({
             {!isComplete && (
               <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
             )}
-            <span className="text-sm font-medium text-foreground">
-              {isComplete ? "AI Planning Complete" : "AI is thinking..."}
-            </span>
+            <span className="text-sm font-medium text-foreground">{stageLabel}</span>
             {!isComplete && (
               <Badge variant="outline" className={`text-xs ${getAgentColor(currentAgent)}`}>
                 {getAgentIcon(currentAgent)}
@@ -126,12 +198,12 @@ export const StreamingThinkingPanel: React.FC<StreamingThinkingPanelProps> = ({
               {isExpanded ? (
                 <>
                   <ChevronUp className="h-3 w-3 mr-1" />
-                  Collapse
+                  Hide
                 </>
               ) : (
                 <>
                   <ChevronDown className="h-3 w-3 mr-1" />
-                  Show timeline ({thoughts.length})
+                  Details ({thoughts.length})
                 </>
               )}
             </Button>
@@ -157,7 +229,7 @@ export const StreamingThinkingPanel: React.FC<StreamingThinkingPanelProps> = ({
                   variant="outline"
                   className={`shrink-0 text-[10px] px-1 py-0 ${getAgentColor(t.agentName)}`}
                 >
-                  {t.agentName.replace("Agent", "")}
+                  {t.agentName}
                 </Badge>
                 <span className="text-muted-foreground leading-relaxed">{t.thought}</span>
               </div>
