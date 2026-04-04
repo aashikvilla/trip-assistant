@@ -28,7 +28,8 @@ import { DBContextTool } from "../src/services/ai/tools/dbContextTool";
 import { WebSearchTool } from "../src/services/ai/tools/webSearchTool";
 import * as fs from "fs";
 
-const TRIP_ID = "4dba033a-607b-42ba-afeb-a65bcc340b01";
+// Accept trip ID from command line arg, or use default Mangalore trip
+const TRIP_ID = process.argv[2] ?? "4dba033a-607b-42ba-afeb-a65bcc340b01";
 
 const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

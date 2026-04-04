@@ -8,6 +8,7 @@ import { ResearchAgent } from "./agents/researchAgent";
 import { PlanningAgent } from "./agents/planningAgent";
 import { ReviewAgent } from "./agents/reviewAgent";
 import { now } from "./utils";
+import { EmailNotificationService } from "../notifications/emailService";
 
 type Json =
   | string
@@ -136,6 +137,10 @@ export class Orchestrator {
         itinerary,
       });
 
+      // 7. Send notifications (email + push)
+      emitLog("Orchestrator", "Sending notifications...", this.emitter);
+      await this.sendNotifications(tripId, tripContext, itinerary, supabase);
+
       console.info("[Orchestrator]", { phase: "complete", jobId, tripId, totalDurationMs: Date.now() - runStart, daysGenerated: itinerary.days.length });
       clearTimeout(watchdogTimer);
     } catch (err) {
@@ -189,6 +194,9 @@ export class Orchestrator {
       .eq("trip_id", tripId)
       .eq("is_ai_generated", true);
 
+    // Use AI system user ID if set, otherwise use trip creator's ID
+    const aiUserId = process.env.AI_SYSTEM_USER_ID ?? createdBy;
+
     // Build new items from ParsedItinerary
     const items: TablesInsert<"itinerary_items">[] = [];
 
@@ -204,7 +212,7 @@ export class Orchestrator {
           for (const activity of activities) {
             items.push({
               trip_id: tripId,
-              created_by: createdBy,
+              created_by: aiUserId,
               type: "activity",
               title: activity,
               activity_description: activity,
@@ -219,7 +227,7 @@ export class Orchestrator {
         if (meal) {
           items.push({
             trip_id: tripId,
-            created_by: createdBy,
+            created_by: aiUserId,
             type: "activity",
             title: meal,
             activity_description: meal,
@@ -262,6 +270,72 @@ export class Orchestrator {
       .eq("id", jobId);
 
     console.info(`[Orchestrator] Persisted ${items.length} items for trip ${tripId}, job ${jobId}`);
+  }
+
+  private async sendNotifications(
+    tripId: string,
+    tripContext: TripContext,
+    itinerary: ParsedItinerary,
+    supabase: ReturnType<typeof getServiceClient>,
+  ): Promise<void> {
+    try {
+      const emailService = new EmailNotificationService();
+
+      // Fetch trip creator's profile for email
+      const { data: creatorProfile } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .eq("id", tripContext.trip.createdBy)
+        .single();
+
+      if (!creatorProfile) {
+        console.warn("[Orchestrator] Could not find creator profile for notifications");
+        return;
+      }
+
+      // Get creator's auth user for email
+      const { data: authUser } = await supabase.auth.admin.getUserById(tripContext.trip.createdBy);
+
+      if (!authUser?.user?.email) {
+        console.warn("[Orchestrator] Could not find creator email for notifications");
+        return;
+      }
+
+      const creatorName = creatorProfile.first_name || creatorProfile.id;
+      const destination = tripContext.trip.destinations[0] || "your destination";
+      const interests = [...new Set(tripContext.members.flatMap(m => m.interests))];
+
+      // Send email notification
+      await emailService.sendItineraryCompletionEmail({
+        tripId,
+        tripName: tripContext.trip.name,
+        destination,
+        startDate: tripContext.trip.startDate,
+        endDate: tripContext.trip.endDate,
+        recipientEmail: authUser.user.email,
+        recipientName: creatorName,
+        groupSize: tripContext.members.length,
+        interests,
+        dietaryRestrictions: tripContext.aggregatedDietary,
+        itinerary,
+      });
+
+      // Send push notification
+      await emailService.sendPushNotification(
+        tripId,
+        tripContext.trip.createdBy,
+        `Your ${destination} itinerary is ready! ${itinerary.days.length} days planned.`
+      );
+
+      console.info("[Orchestrator] Notifications sent", {
+        tripId,
+        email: authUser.user.email,
+        destination,
+      });
+    } catch (err) {
+      // Don't fail the entire orchestration if notifications fail
+      console.error("[Orchestrator] Error sending notifications:", err);
+    }
   }
 }
 

@@ -63,7 +63,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "AI service not configured" }, { status: 502 });
   }
 
-  const model = process.env.OPENROUTER_VISION_MODEL ?? "google/gemini-flash-1.5";
+  // Free vision models with fallback chain
+  const models = [
+    "google/gemma-3-27b-it:free",  // Free, multimodal, 131K context
+    "qwen/qwen3.6-plus:free",      // Free, strong vision capabilities
+    "google/gemma-3-12b-it:free",  // Free, smaller but capable
+  ];
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   const extractionPrompt = `You are a receipt parser. Extract the following fields from this receipt image and return ONLY valid JSON with no markdown or explanation:
@@ -78,48 +84,66 @@ If a field cannot be determined, use null for that field.`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 29_000);
 
-  let openRouterResponse: Response;
-  try {
-    openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": appUrl,
-        "X-Title": "Vibe Trip",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: { url: `data:${mimeType};base64,${imageBase64}` },
-              },
-              {
-                type: "text",
-                text: extractionPrompt,
-              },
-            ],
-          },
-        ],
-      }),
-    });
-  } catch (err: unknown) {
-    clearTimeout(timeout);
-    if (err instanceof Error && err.name === "AbortError") {
-      return NextResponse.json({ error: "Scan timed out, please try again" }, { status: 504 });
+  let openRouterResponse: Response | null = null;
+  let lastError: string = "";
+
+  // Try each model in sequence until one succeeds
+  for (const model of models) {
+    try {
+      openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": appUrl,
+          "X-Title": "Vibe Trip",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+                },
+                {
+                  type: "text",
+                  text: extractionPrompt,
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (openRouterResponse.ok) {
+        console.info("[scan-bill]", { model, success: true });
+        break; // Success, exit loop
+      } else {
+        const errorText = await openRouterResponse.text();
+        lastError = `Model ${model}: ${openRouterResponse.status} ${errorText}`;
+        console.warn("[scan-bill]", { model, status: openRouterResponse.status, error: errorText });
+      }
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err.message : "Unknown error";
+      console.warn("[scan-bill]", { model, error: lastError });
+
+      if (err instanceof Error && err.name === "AbortError") {
+        clearTimeout(timeout);
+        return NextResponse.json({ error: "Scan timed out, please try again" }, { status: 504 });
+      }
     }
-    return NextResponse.json({ error: "AI service unavailable, please try again" }, { status: 502 });
-  } finally {
-    clearTimeout(timeout);
   }
 
-  if (!openRouterResponse.ok) {
+  clearTimeout(timeout);
+
+  // All models failed
+  if (!openRouterResponse || !openRouterResponse.ok) {
+    console.error("[scan-bill]", { allModelsFailed: true, lastError });
     return NextResponse.json({ error: "AI service unavailable, please try again" }, { status: 502 });
   }
 

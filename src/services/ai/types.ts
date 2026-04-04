@@ -126,6 +126,7 @@ export interface ResearchResult {
   results: Array<{
     title: string;
     snippet: string;
+    category?: string; // e.g. "attractions", "dining", "practical", "activities"
   }>;
 }
 

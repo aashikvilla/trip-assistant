@@ -617,7 +617,7 @@ const TripDetail = () => {
             </div>
             <OfflineStorageInfo tripId={trip.id} />
             {/* AI Streaming / Generation Panel */}
-            {(isGenerating || streamStatus === "complete") && (() => {
+            {isGenerating && (() => {
               const totalDays = trip.start_date && trip.end_date
                 ? Math.max(1, Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000) + 1)
                 : 7;
@@ -657,7 +657,7 @@ const TripDetail = () => {
                     </div>
                   </div>
                   {/* AI thinking panel */}
-                  <StreamingThinkingPanel events={events} isComplete={streamStatus === "complete"} />
+                  <StreamingThinkingPanel events={events} isComplete={false} />
                   {/* Partial day cards as they arrive */}
                   {streamingItinerary && streamingItinerary.days.length > 0 && (
                     <div className="space-y-3">
@@ -665,7 +665,7 @@ const TripDetail = () => {
                         <PartialDayCard
                           key={day.day}
                           day={day}
-                          isStreaming={isGenerating && i === streamingItinerary.days.length - 1}
+                          isStreaming={i === streamingItinerary.days.length - 1}
                         />
                       ))}
                     </div>

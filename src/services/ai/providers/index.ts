@@ -12,30 +12,50 @@ export interface LLMProvider {
 }
 
 /**
- * Hardcoded optimal free models from OpenRouter for each use case.
- * All models use the :free tier (no cost, rate limited to 200 req/day).
+ * Model chains: primary model + fallbacks for each use case.
+ * On 429 (rate limit), the provider tries the next model in the chain.
+ * Eliminates cascading failures from rate limits.
+ */
+export const MODEL_CHAINS: Record<string, readonly string[]> = {
+  WEB_SEARCH: [
+    "qwen/qwen3.6-plus:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
+  ],
+  ITINERARY_PLANNING: [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3.6-plus:free",
+    "google/gemma-3-27b-it:free",
+    "mistralai/mistral-7b-instruct:free",
+  ],
+  CHAT: [
+    "google/gemma-3-27b-it:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+  ],
+  REVIEW: [
+    "openai/gpt-oss-120b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+  ],
+} as const;
+
+/**
+ * @deprecated Use MODEL_CHAINS instead
+ * Kept for backward compatibility (test script uses it)
  */
 export const OPENROUTER_MODELS = {
-  // Web search / research - Qwen 3.6 Plus: Latest Qwen, 1M context, great for research
-  WEB_SEARCH: "qwen/qwen3.6-plus:free",
-
-  // Itinerary planning - Llama 3.3 70B: Best structured output, instruction following
-  ITINERARY_PLANNING: "meta-llama/llama-3.3-70b-instruct:free",
-
-  // Chat/conversation - Gemma 3 27B: Fast, good for casual conversation
-  CHAT: "google/gemma-3-27b-it:free",
-
-  // Review/validation - GPT-OSS 120B: Strong reasoning for constraint checking
-  REVIEW: "openai/gpt-oss-120b:free",
+  WEB_SEARCH: MODEL_CHAINS.WEB_SEARCH[0],
+  ITINERARY_PLANNING: MODEL_CHAINS.ITINERARY_PLANNING[0],
+  CHAT: MODEL_CHAINS.CHAT[0],
+  REVIEW: MODEL_CHAINS.REVIEW[0],
 } as const;
 
 /**
  * Factory that returns an LLMProvider for a specific use case.
- * Uses hardcoded optimal free models from OpenRouter.
+ * Passes the full model chain so the provider can fallback on 429.
  */
-export function createLLMProvider(useCase?: keyof typeof OPENROUTER_MODELS): LLMProvider {
-  const model = useCase ? OPENROUTER_MODELS[useCase] : OPENROUTER_MODELS.WEB_SEARCH;
-  return new OpenRouterProvider(model);
+export function createLLMProvider(useCase?: keyof typeof MODEL_CHAINS): LLMProvider {
+  const models = useCase ? MODEL_CHAINS[useCase] : MODEL_CHAINS.WEB_SEARCH;
+  return new OpenRouterProvider(Array.from(models));
 }
 
 /**
