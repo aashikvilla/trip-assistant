@@ -150,10 +150,16 @@ export class PlanningAgent implements Agent {
         console.warn("[PlanningAgent]", { dayNum, attempt, error: lastError });
 
         if (attempt === MAX_RETRIES) {
-          // Return fallback day on final failure
+          // Surface the failure visibly rather than silently producing dummy data
+          emitter?.emit({
+            type: "agent_thought",
+            timestamp: now(),
+            agentName: "PlanningAgent",
+            thought: `Day ${dayNum} generation failed: ${lastError}`,
+          });
           parsedDay = this.createFallbackDay(dayNum, tripContext);
           this.warnIfGeneric(parsedDay);
-          console.warn("[PlanningAgent]", { dayNum, fallbackUsed: true });
+          console.warn("[PlanningAgent]", { dayNum, fallbackUsed: true, reason: lastError });
         }
       }
     }

@@ -17,29 +17,29 @@ export interface LLMProvider {
  * Eliminates cascading failures from rate limits.
  */
 export const MODEL_CHAINS: Record<string, readonly string[]> = {
+  // Research: Gemma 27B is fast and handles open-ended queries well
   WEB_SEARCH: [
-    "qwen/qwen3.6-plus:free",
-    "google/gemma-3-12b-it:free",
-    "google/gemma-3-4b-it:free",
     "google/gemma-3-27b-it:free",
     "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-12b-it:free",
+    "google/gemma-3-4b-it:free",
   ],
+  // Planning: Llama 3.3 70B produces reliable structured JSON
   ITINERARY_PLANNING: [
-    "qwen/qwen3.6-plus:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
     "google/gemma-3-12b-it:free",
     "google/gemma-3-4b-it:free",
-    "google/gemma-3-27b-it:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
   ],
   CHAT: [
-    "qwen/qwen3.6-plus:free",
     "google/gemma-3-27b-it:free",
     "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-12b-it:free",
   ],
   REVIEW: [
-    "qwen/qwen3.6-plus:free",
-    "google/gemma-3-27b-it:free",
     "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemma-3-27b-it:free",
+    "google/gemma-3-12b-it:free",
   ],
 } as const;
 

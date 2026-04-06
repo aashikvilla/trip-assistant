@@ -1,12 +1,21 @@
 import type { ParsedItinerary } from "./types";
 
 /**
- * Strips markdown fences and trims whitespace from raw LLM output.
+ * Strips markdown fences, thinking blocks, and trims whitespace from raw LLM output.
+ * Extracts the first JSON object or array if surrounded by prose.
  */
 export function cleanLLMOutput(raw: string): string {
   let cleaned = raw.trim();
+  // Strip reasoning/thinking blocks emitted by models like Qwen3 and DeepSeek-R1
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
   // Remove markdown code fences (```json ... ``` or ``` ... ```)
-  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "").trim();
+  // If the model added prose before/after the JSON, extract the JSON object or array
+  const jsonStart = cleaned.search(/[{[]/);
+  const jsonEnd = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+  if (jsonStart > 0 && jsonEnd > jsonStart) {
+    cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+  }
   return cleaned.trim();
 }
 

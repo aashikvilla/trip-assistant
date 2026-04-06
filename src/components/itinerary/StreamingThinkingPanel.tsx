@@ -43,6 +43,8 @@ function friendlyThought(thought: string): string {
   if (thought.includes("Itinerary planning complete")) return "All days planned ✓";
   if (thought.includes("No web search data")) return "Using curated knowledge for planning...";
   if (thought.includes("Analyzing trip details")) return "Analysing your trip preferences...";
+  const dayFailMatch = thought.match(/Day (\d+) generation failed/);
+  if (dayFailMatch) return `⚠ Day ${dayFailMatch[1]}: AI unavailable — check your OpenRouter API key`;
   const dayMatch = thought.match(/Planning Day (\d+)/);
   if (dayMatch) return `Planning Day ${dayMatch[1]}...`;
   const researchMatch = thought.match(/Researching (.+?) \(/);
