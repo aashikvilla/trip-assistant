@@ -182,7 +182,15 @@ export class OpenRouterProvider implements LLMProvider {
 
       if (!response.ok) {
         const raw = await response.text();
-        lastError = new LLMProviderError("openrouter", response.status, raw);
+        if (response.status === 402) {
+          lastError = new LLMProviderError(
+            "openrouter",
+            402,
+            "Payment required — the free-tier quota for this model has been exhausted. Add credits at openrouter.ai or set a different model via OPENROUTER_MODEL.",
+          );
+        } else {
+          lastError = new LLMProviderError("openrouter", response.status, raw);
+        }
         throw lastError;
       }
 

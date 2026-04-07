@@ -148,25 +148,19 @@ export class PlanningAgent implements Agent {
       } catch (err) {
         lastError = err instanceof Error ? err.message : "Unknown error";
         console.warn("[PlanningAgent]", { dayNum, attempt, error: lastError });
-
-        if (attempt === MAX_RETRIES) {
-          // Surface the failure visibly rather than silently producing dummy data
-          emitter?.emit({
-            type: "agent_thought",
-            timestamp: now(),
-            agentName: "PlanningAgent",
-            thought: `Day ${dayNum} generation failed: ${lastError}`,
-          });
-          parsedDay = this.createFallbackDay(dayNum, tripContext);
-          this.warnIfGeneric(parsedDay);
-          console.warn("[PlanningAgent]", { dayNum, fallbackUsed: true, reason: lastError });
-        }
       }
     }
 
     if (!parsedDay) {
-      parsedDay = this.createFallbackDay(dayNum, tripContext);
-      this.warnIfGeneric(parsedDay);
+      const errMsg = `Failed to generate Day ${dayNum} after ${MAX_RETRIES + 1} attempts: ${lastError || "unknown error"}`;
+      emitter?.emit({
+        type: "agent_thought",
+        timestamp: now(),
+        agentName: "PlanningAgent",
+        thought: errMsg,
+      });
+      console.error("[PlanningAgent]", { dayNum, error: errMsg });
+      throw new Error(errMsg);
     }
 
     // Emit partial itinerary event as each day completes

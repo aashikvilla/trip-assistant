@@ -236,17 +236,9 @@ function parseSingleAgentOutput(raw: string, ctx: TripContext): ParsedItinerary 
         `Enjoy your trip to ${ctx.trip.destinations.join(", ")}!`,
     };
   } catch (err) {
-    console.error("[SingleAgent] JSON parse failed:", err, "\nRaw:", raw.slice(0, 400));
-    return {
-      days: Array.from({ length: ctx.trip.tripLengthDays }, (_, i) => ({
-        day: i + 1,
-        title: `Day ${i + 1} in ${ctx.trip.destinations[0] ?? "your destination"}`,
-        morning: { activities: ["Explore the local area"] },
-        afternoon: { activities: ["Visit a local attraction"] },
-        evening: { activities: ["Dinner at a local restaurant"] },
-      })),
-      closing_note: "Enjoy your trip!",
-    };
+    const message = err instanceof Error ? err.message : "Unknown parse error";
+    console.error("[SingleAgent] JSON parse failed:", message, "\nRaw:", raw.slice(0, 400));
+    throw new Error(`Failed to parse itinerary response: ${message}`);
   }
 }
 
