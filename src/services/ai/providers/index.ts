@@ -2,6 +2,7 @@ import type { LLMMessage, ToolDefinition } from "../types";
 import { OpenRouterProvider } from "./openRouterProvider";
 import { OllamaProvider } from "./ollamaProvider";
 import { OpenAICompatibleProvider } from "./openAICompatibleProvider";
+import { AnthropicProvider } from "./anthropicProvider";
 
 export interface LLMProvider {
   streamChat(
@@ -56,9 +57,15 @@ export const OPENROUTER_MODELS = {
 
 /**
  * Factory that returns an LLMProvider for a specific use case.
- * Passes the full model chain so the provider can fallback on 429.
+ *
+ * Priority:
+ *   1. Anthropic API — if ANTHROPIC_API_KEY is set (reliable, no free-tier quota issues)
+ *   2. OpenRouter — falls back to the full model chain with 429 fallbacks
  */
 export function createLLMProvider(useCase?: keyof typeof MODEL_CHAINS): LLMProvider {
+  if (process.env.ANTHROPIC_API_KEY) {
+    return new AnthropicProvider(useCase);
+  }
   const models = useCase ? MODEL_CHAINS[useCase] : MODEL_CHAINS.WEB_SEARCH;
   return new OpenRouterProvider(Array.from(models));
 }

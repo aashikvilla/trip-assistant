@@ -94,7 +94,7 @@ export class PlanningAgent implements Agent {
     emitter?: StreamEmitter,
   ): Promise<ParsedItineraryDay> {
     if (abortSignal?.aborted) {
-      return this.createFallbackDay(dayNum, tripContext);
+      throw new Error(`Day ${dayNum} generation cancelled (request aborted)`);
     }
 
     const dayStart = Date.now();
