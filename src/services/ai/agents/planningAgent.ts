@@ -138,9 +138,18 @@ export class PlanningAgent implements Agent {
         const validation = ParsedItineraryDaySchema.safeParse(parsed);
 
         if (validation.success) {
-          parsedDay = validation.data as ParsedItineraryDay;
-          console.info("[PlanningAgent]", { dayNum, attempt, durationMs: Date.now() - dayStart });
-          break;
+          const candidate = validation.data as ParsedItineraryDay;
+          if (this.hasGenericContent(candidate) && attempt < MAX_RETRIES) {
+            lastError = `Generic placeholder content detected (e.g. "explore the local area"). You MUST use the real names of specific places in ${tripContext.trip.destinations.join(", ")} — draw on your training knowledge of the destination.`;
+            console.warn("[PlanningAgent]", { dayNum, attempt, warning: "Generic content — retrying" });
+          } else {
+            parsedDay = candidate;
+            if (this.hasGenericContent(candidate)) {
+              console.warn("[PlanningAgent]", { dayNum, warning: "Generic content persisted after all retries" });
+            }
+            console.info("[PlanningAgent]", { dayNum, attempt, durationMs: Date.now() - dayStart });
+            break;
+          }
         } else {
           lastError = validation.error.message;
           console.warn("[PlanningAgent]", { dayNum, attempt, validationError: lastError });
@@ -173,29 +182,26 @@ export class PlanningAgent implements Agent {
     return parsedDay;
   }
 
-  private createFallbackDay(dayNum: number, tripContext: TripContext): ParsedItineraryDay {
-    return {
-      day: dayNum,
-      title: `Day ${dayNum} in ${tripContext.trip.destinations[0] ?? "your destination"}`,
-      morning: { activities: ["Explore the local area"] },
-      afternoon: { activities: ["Visit a local attraction"] },
-      evening: { activities: ["Dinner at a local restaurant"] },
-    };
-  }
-
-  private warnIfGeneric(day: ParsedItineraryDay): void {
-    const genericPhrases = ["Explore the local area", "Visit a local attraction", "Dinner at a local restaurant"];
+  private hasGenericContent(day: ParsedItineraryDay): boolean {
+    const genericPhrases = [
+      "explore the local area",
+      "visit a local attraction",
+      "dinner at a local restaurant",
+      "local museum",
+      "local market",
+      "a local restaurant",
+      "the local area",
+    ];
     const allText = [
       day.morning?.activities?.join(" "),
       day.afternoon?.activities?.join(" "),
       day.evening?.activities?.join(" "),
     ]
       .filter(Boolean)
-      .join(" ");
+      .join(" ")
+      .toLowerCase();
 
-    if (genericPhrases.some(phrase => allText.includes(phrase))) {
-      console.warn(`[PlanningAgent] WARN: Generic fallback detected on day ${day.day}`);
-    }
+    return genericPhrases.some((phrase) => allText.includes(phrase));
   }
 
   private buildSystemPrompt(
@@ -226,9 +232,11 @@ TRIP CONTEXT:
       prompt += `\n- Dietary restrictions (MUST follow): ${aggregatedDietary.join(", ")}`;
     }
 
-    if (researchResults && researchResults.length > 0) {
+    const hasResearchData = researchResults && researchResults.some(r => r.results?.length > 0);
+
+    if (hasResearchData) {
       prompt += "\n\nRESEARCH INSIGHTS:";
-      for (const research of researchResults) {
+      for (const research of researchResults!) {
         if (research.results.length > 0) {
           prompt += `\n${research.destination}:`;
           research.results.slice(0, 5).forEach((r) => {
@@ -236,6 +244,12 @@ TRIP CONTEXT:
           });
         }
       }
+    } else {
+      prompt += `\n\nNO WEB SEARCH DATA — use your training knowledge of ${trip.destinations.join(", ")} to name REAL, SPECIFIC places. Examples of the specificity required:`;
+      prompt += `\n  - Instead of "Visit a local attraction" → "Visit the Burj Khalifa observation deck on the 124th floor"`;
+      prompt += `\n  - Instead of "Dinner at a local restaurant" → "Dinner at Nobu Dubai inside Atlantis The Palm"`;
+      prompt += `\n  - Instead of "Explore the local area" → "Walk through the Al Fahidi Historical Neighbourhood and Dubai Creek"`;
+      prompt += `\n  Adapt these examples to the actual destination and trip preferences.`;
     }
 
     if (coTravelerRecommendations.length > 0) {
@@ -270,7 +284,8 @@ OUTPUT FORMAT - respond with ONLY this JSON structure, no markdown fences:
 Rules:
 - 2-3 activities per time period (morning/afternoon/evening)
 - All food suggestions must respect dietary restrictions: ${aggregatedDietary.join(", ") || "none"}
-- Be specific with real place names (not generic like "explore" or "visit")
+- CRITICAL: Every activity must be a REAL, NAMED place or experience — never write "explore the local area", "visit a local attraction", "a local museum", "a local market", or "dinner at a local restaurant"
+- Use the actual name of the attraction, restaurant, neighbourhood, or venue
 - Match the budget level (${trip.budget}) in all recommendations
 - Tailor activities to group interests: ${allInterests.join(", ") || "general travel"}
 - Hotel recommendations only needed on Day 1`;
