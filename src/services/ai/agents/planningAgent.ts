@@ -110,6 +110,8 @@ export class PlanningAgent implements Agent {
 
     let parsedDay: ParsedItineraryDay | null = null;
     let lastError = "";
+    let lastRawOutput = "";
+    let isGenericContentError = false;
     const MAX_RETRIES = 2;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -121,17 +123,27 @@ export class PlanningAgent implements Agent {
           { role: "user", content: userPrompt },
         ];
 
-        if (attempt > 0) {
-          messages.push({
-            role: "user",
-            content: `The previous response failed validation: ${lastError}. Please try again and ensure the JSON exactly matches the required schema.`,
-          });
+        if (attempt > 0 && lastRawOutput) {
+          // Include previous response as assistant turn so the model knows what to fix
+          messages.push({ role: "assistant", content: lastRawOutput });
+          if (isGenericContentError) {
+            messages.push({
+              role: "user",
+              content: `Your response contained generic placeholder content. ${lastError} Do NOT write vague descriptions like "explore the local area" or "visit a local attraction". Name every venue, restaurant, and neighbourhood explicitly.`,
+            });
+          } else {
+            messages.push({
+              role: "user",
+              content: `Your response had a formatting issue: ${lastError}. Please rewrite it as valid JSON matching the required schema exactly.`,
+            });
+          }
         }
 
         let rawOutput = "";
         for await (const token of this.provider.streamChat(messages, undefined, abortSignal)) {
           rawOutput += token;
         }
+        lastRawOutput = rawOutput;
 
         const cleaned = cleanLLMOutput(rawOutput);
         const parsed = JSON.parse(cleaned) as unknown;
@@ -140,7 +152,14 @@ export class PlanningAgent implements Agent {
         if (validation.success) {
           const candidate = validation.data as ParsedItineraryDay;
           if (this.hasGenericContent(candidate) && attempt < MAX_RETRIES) {
-            lastError = `Generic placeholder content detected (e.g. "explore the local area"). You MUST use the real names of specific places in ${tripContext.trip.destinations.join(", ")} — draw on your training knowledge of the destination.`;
+            isGenericContentError = true;
+            lastError = `You MUST use the real names of specific places in ${tripContext.trip.destinations.join(", ")} — draw on your training knowledge of the destination.`;
+            emitter?.emit({
+              type: "agent_thought",
+              timestamp: now(),
+              agentName: "PlanningAgent",
+              thought: `Day ${dayNum}: generic content detected, retrying with correction (attempt ${attempt + 1}/${MAX_RETRIES})...`,
+            });
             console.warn("[PlanningAgent]", { dayNum, attempt, warning: "Generic content — retrying" });
           } else {
             parsedDay = candidate;
@@ -151,10 +170,12 @@ export class PlanningAgent implements Agent {
             break;
           }
         } else {
+          isGenericContentError = false;
           lastError = validation.error.message;
           console.warn("[PlanningAgent]", { dayNum, attempt, validationError: lastError });
         }
       } catch (err) {
+        isGenericContentError = false;
         lastError = err instanceof Error ? err.message : "Unknown error";
         console.warn("[PlanningAgent]", { dayNum, attempt, error: lastError });
       }
@@ -187,15 +208,21 @@ export class PlanningAgent implements Agent {
       "explore the local area",
       "visit a local attraction",
       "dinner at a local restaurant",
+      "lunch at a local restaurant",
+      "breakfast at a local",
       "local museum",
       "local market",
       "a local restaurant",
       "the local area",
+      "local attraction",
     ];
     const allText = [
       day.morning?.activities?.join(" "),
+      day.morning?.breakfast,
       day.afternoon?.activities?.join(" "),
+      day.afternoon?.lunch,
       day.evening?.activities?.join(" "),
+      day.evening?.dinner,
     ]
       .filter(Boolean)
       .join(" ")
